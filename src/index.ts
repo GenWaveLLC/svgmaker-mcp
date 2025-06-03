@@ -14,7 +14,7 @@ import { registerGenerateTool } from './tools/generateTool.js';
 dotenv.config();
 
 async function main() {
-    const apiKey = process.env.SVGMMAKER_API_KEY;
+    const apiKey = process.env.SVGMAKER_API_KEY;
     if (!apiKey) {
         process.exit(1);
     }
@@ -33,7 +33,7 @@ async function main() {
     );
 
     // Initialize SVGMaker Service
-    initializeSvgmakerService(apiKey, process.env.SVGMMAKER_RATE_LIMIT_RPM, process.env.SVGMMAKER_BASE_URL);
+    initializeSvgmakerService(apiKey, process.env.SVGMMAKER_RATE_LIMIT_RPM, process.env.SVGMAKER_BASE_URL);
 
     // Set up tool handlers
     server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -66,6 +66,43 @@ async function main() {
                         },
                         required: ["prompt", "output_path"]
                     }
+                },
+                {
+                    name: "svgmaker_edit",
+                    description: "Edits an existing image/SVG file based on a text prompt using SVGMaker API and saves it to a specified local path.",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            input_path: {
+                                type: "string",
+                                description: "Absolute file path to the image/SVG to edit"
+                            },
+                            prompt: {
+                                type: "string",
+                                description: "Text prompt for SVG editing"
+                            },
+                            output_path: {
+                                type: "string",
+                                description: "Local file path where the edited SVG will be saved"
+                            },
+                            quality: {
+                                type: "string",
+                                enum: ["low", "medium", "high"],
+                                description: "Quality level - affects aspect ratio: low/medium use 'auto', high uses 'square'"
+                            },
+                            aspectRatio: {
+                                type: "string",
+                                enum: ["auto", "portrait", "landscape", "square"],
+                                description: "Aspect ratio for the edited SVG"
+                            },
+                            background: {
+                                type: "string",
+                                enum: ["auto", "transparent", "opaque"],
+                                description: "Background type"
+                            }
+                        },
+                        required: ["input_path", "prompt", "output_path"]
+                    }
                 }
             ]
         };
@@ -74,11 +111,8 @@ async function main() {
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         
-        if (name !== "svgmaker_generate") {
-            throw new Error(`Unknown tool: ${name}`);
-        }
-
-        try {
+        if (name === "svgmaker_generate") {
+            try {
             // Ensure args exists
             if (!args) {
                 throw new Error("No arguments provided");
@@ -142,6 +176,84 @@ async function main() {
                     text: `Error generating SVG: ${error.message}` 
                 }]
             };
+        }
+        } else if (name === "svgmaker_edit") {
+            try {
+                // Ensure args exists
+                if (!args) {
+                    throw new Error("No arguments provided");
+                }
+                
+                // Simple validation
+                if (!args.input_path || typeof args.input_path !== 'string') {
+                    throw new Error("Input path is required and must be a string");
+                }
+                if (!args.prompt || typeof args.prompt !== 'string') {
+                    throw new Error("Prompt is required and must be a string");
+                }
+                if (!args.output_path || typeof args.output_path !== 'string') {
+                    throw new Error("Output path is required and must be a string");
+                }
+
+                // Basic path validation (simplified for now)
+                const inputPath = args.input_path as string;
+                const outputPath = args.output_path as string;
+                if (!outputPath.endsWith('.svg')) {
+                    throw new Error("Output path must end with .svg extension");
+                }
+
+                // Determine aspect ratio based on quality and explicit aspectRatio
+                let finalAspectRatio = args.aspectRatio as string;
+                if (!finalAspectRatio) {
+                    if (args.quality === 'high') {
+                        finalAspectRatio = 'square';
+                    } else {
+                        finalAspectRatio = 'auto';
+                    }
+                }
+
+                // Import required functions
+                const { readFileToBuffer, resolveAndValidatePath, writeFile } = await import('./utils/fileUtils.js');
+                const { editSVG } = await import('./services/svgmakerService.js');
+
+                // Validate paths and read input file
+                const validatedInputPath = await resolveAndValidatePath(inputPath, [], 'read');
+                const validatedOutputPath = await resolveAndValidatePath(outputPath, [], 'write');
+                const inputImage = await readFileToBuffer(validatedInputPath);
+
+                const sdkParams = {
+                    image: inputImage,
+                    prompt: args.prompt,
+                    quality: (args.quality || 'medium') as 'low' | 'medium' | 'high',
+                    aspectRatio: finalAspectRatio as 'auto' | 'portrait' | 'landscape' | 'square',
+                    background: (args.background || 'auto') as 'auto' | 'transparent' | 'opaque',
+                    svgText: true,
+                };
+
+                const result = await editSVG(sdkParams as any);
+
+                if (result.svgText) {
+                    await writeFile(validatedOutputPath, result.svgText);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `SVG edited successfully and saved to: ${validatedOutputPath}`
+                        }]
+                    };
+                } else {
+                    throw new Error("SVGMaker API did not return SVG content.");
+                }
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ 
+                        type: 'text', 
+                        text: `Error editing SVG: ${error.message}` 
+                    }]
+                };
+            }
+        } else {
+            throw new Error(`Unknown tool: ${name}`);
         }
     });
 

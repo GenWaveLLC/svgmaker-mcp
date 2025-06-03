@@ -35,7 +35,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "dotenv": "^16.5.0",
-    "svgmaker-sdk": "^0.2.1",
+    "@genwave/svgmaker-sdk": "^0.2.2",
     "zod": "^3.25.46"
   },
   "devDependencies": {
