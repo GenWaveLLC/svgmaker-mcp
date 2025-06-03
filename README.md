@@ -38,7 +38,7 @@ pnpm add @genwave/svgmaker-mcp
 
 1. Create .env file:
 ```bash
-SVGMMAKER_API_KEY="your_api_key_here"
+SVGMAKER_API_KEY="your_api_key_here"
 ```
 
 2. Start the server:
@@ -58,7 +58,7 @@ npx svgmaker-mcp
       "command": "node",
       "args": ["/path/to/node_modules/@genwave/svgmaker-mcp/build/index.js"],
       "env": {
-        "SVGMMAKER_API_KEY": "your_api_key_here"
+        "SVGMAKER_API_KEY": "your_api_key_here"
       }
     }
   }
@@ -157,13 +157,11 @@ Convert images to SVG format.
 
 ## ⚙️ Configuration
 
-Environment variables in `.env`:
+Required environment variable in `.env`:
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SVGMMAKER_API_KEY` | Yes | - | Your SVGMaker API key |
-| `SVGMMAKER_RATE_LIMIT_RPM` | No | 2 | API rate limit (requests/minute) |
-| `SVGMMAKER_BASE_URL` | No | https://svgmaker.io/api | Custom API endpoint |
+| Variable | Description |
+|----------|-------------|
+| `SVGMAKER_API_KEY` | Your SVGMaker API key |
 
 ## 🔍 Development
 
@@ -202,26 +200,15 @@ npx @modelcontextprotocol/inspector node build/index.js
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create your feature branch
-3. Make your changes
-4. Submit a pull request
-
-Check our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📚 Documentation
 
+For detailed documentation, please check:
 - [API Documentation](docs/api/)
-- [Development Guide](docs/development.md)
-- [Examples](docs/examples/)
-- [Security Guide](docs/security.md)
-
-## 🆘 Support
-
-- 📖 [Documentation](https://github.com/GenWaveLLC/svgmaker-mcp/tree/main/docs)
-- 🐛 [Issue Tracker](https://github.com/GenWaveLLC/svgmaker-mcp/issues)
-- 💬 [Discussions](https://github.com/GenWaveLLC/svgmaker-mcp/discussions)
+- [GitHub Repository](https://github.com/GenWaveLLC/svgmaker-mcp)
+- [Issue Tracker](https://github.com/GenWaveLLC/svgmaker-mcp/issues)
 
 ## 📜 License
 
-MIT © [Genwave LLC](https://github.com/GenWaveLLC)
+MIT © [Genwave LLC](https://github.com/GenWaveLLC) - see the [LICENSE](LICENSE) file for details.
