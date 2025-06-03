@@ -9,6 +9,7 @@ import {
 import dotenv from 'dotenv';
 import { initializeSvgmakerService } from './services/svgmakerService.js';
 import { registerGenerateTool } from './tools/generateTool.js';
+import { registerConvertTool } from './tools/convertTool.js';
 
 // Load environment variables
 dotenv.config();
@@ -102,6 +103,24 @@ async function main() {
                             }
                         },
                         required: ["input_path", "prompt", "output_path"]
+                    }
+                },
+                {
+                    name: "svgmaker_convert",
+                    description: "Converts an image file to SVG format using SVGMaker API and saves it to a specified local path.",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            input_path: {
+                                type: "string",
+                                description: "Absolute file path to the image file to convert"
+                            },
+                            output_path: {
+                                type: "string",
+                                description: "Local file path where the SVG will be saved"
+                            }
+                        },
+                        required: ["input_path", "output_path"]
                     }
                 }
             ]
@@ -249,6 +268,64 @@ async function main() {
                     content: [{ 
                         type: 'text', 
                         text: `Error editing SVG: ${error.message}` 
+                    }]
+                };
+            }
+        } else if (name === "svgmaker_convert") {
+            try {
+                // Ensure args exists
+                if (!args) {
+                    throw new Error("No arguments provided");
+                }
+                
+                // Simple validation
+                if (!args.input_path || typeof args.input_path !== 'string') {
+                    throw new Error("Input path is required and must be a string");
+                }
+                if (!args.output_path || typeof args.output_path !== 'string') {
+                    throw new Error("Output path is required and must be a string");
+                }
+
+                // Basic path validation (simplified for now)
+                const inputPath = args.input_path as string;
+                const outputPath = args.output_path as string;
+                if (!outputPath.endsWith('.svg')) {
+                    throw new Error("Output path must end with .svg extension");
+                }
+
+                // Import required functions
+                const { readFileToBuffer, resolveAndValidatePath, writeFile } = await import('./utils/fileUtils.js');
+                const { convertImageToSVG } = await import('./services/svgmakerService.js');
+
+                // Validate paths and read input file
+                const validatedInputPath = await resolveAndValidatePath(inputPath, [], 'read');
+                const validatedOutputPath = await resolveAndValidatePath(outputPath, [], 'write');
+                const inputImage = await readFileToBuffer(validatedInputPath);
+
+                const sdkParams = {
+                    file: inputImage,
+                    svgText: true,
+                };
+
+                const result = await convertImageToSVG(sdkParams as any);
+
+                if (result.svgText) {
+                    await writeFile(validatedOutputPath, result.svgText);
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `Image converted to SVG successfully and saved to: ${validatedOutputPath}`
+                        }]
+                    };
+                } else {
+                    throw new Error("SVGMaker API did not return SVG content.");
+                }
+            } catch (error: any) {
+                return {
+                    isError: true,
+                    content: [{ 
+                        type: 'text', 
+                        text: `Error converting image to SVG: ${error.message}` 
                     }]
                 };
             }
