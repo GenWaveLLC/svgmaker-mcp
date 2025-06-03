@@ -5,6 +5,8 @@ An MCP (Model Context Protocol) server that enables LLMs to programmatically gen
 ## Features
 
 - **SVG Generation**: Generate SVG images from text prompts with customizable quality and aspect ratio
+- **SVG Editing**: Edit existing SVGs or images using text prompts
+- **Image Conversion**: Convert any image file to SVG format
 - **Secure File Operations**: Built-in path validation and security checks
 - **Rate Limiting**: Configurable API rate limiting (default: 2 requests per minute)
 - **TypeScript**: Full TypeScript support with type safety
@@ -67,6 +69,7 @@ Generates an SVG image from a text prompt and saves it to a specified local path
   - `low`/`medium`: Uses automatic aspect ratio
   - `high`: Uses square aspect ratio by default
 - `aspectRatio` (optional): Override aspect ratio - `"square"`, `"portrait"`, or `"landscape"`
+- `background` (optional): Background type - `"auto"`, `"transparent"`, or `"opaque"`
 
 **Example:**
 ```json
@@ -75,6 +78,48 @@ Generates an SVG image from a text prompt and saves it to a specified local path
   "output_path": "./generated_circle.svg",
   "quality": "high",
   "aspectRatio": "square"
+}
+```
+
+### `svgmaker_edit`
+
+Edits an existing image/SVG file based on a text prompt and saves the result to a specified local path.
+
+**Parameters:**
+- `input_path` (required): Absolute file path to the image/SVG to edit
+- `prompt` (required): Text description of the edits to make
+- `output_path` (required): Local file path where the edited SVG will be saved (must end with .svg)
+- `quality` (optional): Quality level - `"low"`, `"medium"`, or `"high"`
+  - `low`/`medium`: Uses automatic aspect ratio
+  - `high`: Uses square aspect ratio by default
+- `aspectRatio` (optional): Override aspect ratio - `"auto"`, `"square"`, `"portrait"`, or `"landscape"`
+- `background` (optional): Background type - `"auto"`, `"transparent"`, or `"opaque"`
+
+**Example:**
+```json
+{
+  "input_path": "/absolute/path/to/input.svg",
+  "prompt": "Make it more vibrant and add a blue border",
+  "output_path": "./edited_image.svg",
+  "quality": "high",
+  "aspectRatio": "square",
+  "background": "transparent"
+}
+```
+
+### `svgmaker_convert`
+
+Converts an image file to SVG format and saves it to a specified local path.
+
+**Parameters:**
+- `input_path` (required): Absolute file path to the image file to convert
+- `output_path` (required): Local file path where the SVG will be saved (must end with .svg)
+
+**Example:**
+```json
+{
+  "input_path": "/absolute/path/to/image.png",
+  "output_path": "./converted_image.svg"
 }
 ```
 
@@ -113,7 +158,7 @@ To use this server with Claude Desktop, add the following to your `claude_deskto
 ## Development Roadmap
 
 - [x] Phase 1: Basic SVG generation tool
-- [ ] Phase 2: Add edit and convert tools
+- [x] Phase 2: Add edit and convert tools
 - [ ] Phase 3: Enhanced error handling and progress notifications
 - [ ] Phase 4: Complete documentation and NPM packaging
 
