@@ -19,19 +19,55 @@
 - **⚡ Real-Time Progress**: Live updates during operations
 - **📝 Type Safety**: Full TypeScript support with type definitions
 
-## 🚀 Quick Start
+## 📋 Table of Contents
 
-### Installation
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [LLM Integrations](#-llm-integrations)
+- [Available Tools](#️-available-tools)
+- [Configuration](#️-configuration)
+- [Development](#-development)
+- [Contributing](#-contributing)
+
+## 💻 Requirements
+
+- Node.js: Minimum version 18.0.0
+  ```bash
+  node --version  # Should be >= v18.0.0
+  ```
+- npm: Minimum version 7.0.0
+  ```bash
+  npm --version   # Should be >= 7.0.0
+  ```
+- Operating Systems: 
+  - Linux (Ubuntu 20.04+, CentOS 8+)
+  - macOS (10.15+)
+  - Windows (10+)
+- SVGMaker API key ([Get one here](https://svgmaker.io))
+
+## 📦 Package Structure
+
+```
+@genwave/svgmaker-mcp/
+├── build/              # Compiled JavaScript files
+├── docs/              # Documentation
+│   └── api/           # API documentation
+├── src/               # Source TypeScript files
+│   ├── tools/         # MCP tool implementations
+│   ├── services/      # API integration
+│   └── utils/         # Utility functions
+└── types/             # TypeScript declarations
+```
+
+## 🚀 Installation
 
 ```bash
-# npm
+# Using npm
 npm install @genwave/svgmaker-mcp
 
-# yarn
+# Using yarn
 yarn add @genwave/svgmaker-mcp
-
-# pnpm
-pnpm add @genwave/svgmaker-mcp
 ```
 
 ### Basic Setup
@@ -56,9 +92,11 @@ npx svgmaker-mcp
   "mcpServers": {
     "svgmaker": {
       "command": "node",
-      "args": ["/path/to/node_modules/@genwave/svgmaker-mcp/build/index.js"],
+      "args": ["./node_modules/@genwave/svgmaker-mcp/build/index.js"],
+      "transport": "stdio",
       "env": {
-        "SVGMAKER_API_KEY": "your_api_key_here"
+        "SVGMAKER_API_KEY": "your_api_key_here",
+        "SVGMAKER_RATE_LIMIT_RPM": "2"
       }
     }
   }
@@ -91,7 +129,12 @@ Generate an SVG of a minimalist mountain landscape:
     "svgmaker": {
       "type": "local",
       "command": "npx",
-      "args": ["@genwave/svgmaker-mcp"]
+      "args": ["@genwave/svgmaker-mcp"],
+      "transport": "stdio",
+      "env": {
+        "SVGMAKER_API_KEY": "your_api_key_here",
+        "SVGMAKER_RATE_LIMIT_RPM": "2"
+      }
     }
   }
 }
@@ -157,7 +200,7 @@ Convert images to SVG format.
 
 ## ⚙️ Configuration
 
-Required environment variable in `.env`:
+Required environment variable:
 
 | Variable | Description |
 |----------|-------------|
@@ -167,15 +210,14 @@ Required environment variable in `.env`:
 
 ### Local Setup
 
-1. Clone the repository:
-```bash
-git clone https://github.com/GenWaveLLC/svgmaker-mcp.git
-cd svgmaker-mcp
-```
-
-2. Install dependencies:
+1. Clone and install dependencies:
 ```bash
 npm install
+```
+
+2. Create .env file with your API key
+```bash
+SVGMAKER_API_KEY="your_api_key_here"
 ```
 
 3. Run in development mode:
@@ -200,15 +242,22 @@ npx @modelcontextprotocol/inspector node build/index.js
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see our [Contributing Guide](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/CONTRIBUTING.md) for details.
 
-## 📚 Documentation
+## ⭐ Features
 
-For detailed documentation, please check:
-- [API Documentation](docs/api/)
-- [GitHub Repository](https://github.com/GenWaveLLC/svgmaker-mcp)
-- [Issue Tracker](https://github.com/GenWaveLLC/svgmaker-mcp/issues)
+### Input Format Support
+- SVG files (.svg)
+- PNG images (.png)
+- JPEG images (.jpg, .jpeg)
+- Other common image formats
 
-## 📜 License
+### Output Capabilities
+- Clean, optimized SVG output
+- Multiple aspect ratio options
+- Background control (transparent/opaque)
+- High-quality vectorization
 
-MIT © [Genwave LLC](https://github.com/GenWaveLLC) - see the [LICENSE](LICENSE) file for details.
+## 📝 License
+
+MIT © [Genwave LLC](https://github.com/GenWaveLLC) - see the [LICENSE](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE) file for details.

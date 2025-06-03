@@ -1,6 +1,6 @@
 {
   "name": "@genwave/svgmaker-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for generating, editing, and converting SVG images using SVGMaker API",
   "type": "module",
   "main": "build/index.js",
@@ -34,14 +34,7 @@
   ],
   "author": "Genwave",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/GenWave/svgmaker-mcp"
-  },
-  "bugs": {
-    "url": "https://github.com/GenWave/svgmaker-mcp/issues"
-  },
-  "homepage": "https://github.com/GenWave/svgmaker-mcp#readme",
+  "private": false,
   "engines": {
     "node": ">=18.0.0"
   },
