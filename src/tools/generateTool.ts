@@ -2,7 +2,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { 
     CallToolRequestSchema,
     ListToolsRequestSchema,
-    TextContent 
+    TextContent,
+    RequestMeta
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -32,7 +33,7 @@ export function registerGenerateTool(server: Server) {
     });
 
     // Register the call tool handler if not already registered
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }) => {
         const { name, arguments: args } = request.params;
         
         if (name !== "svgmaker_generate") {
@@ -57,22 +58,56 @@ export function registerGenerateTool(server: Server) {
                 }
             }
 
-            const sdkParams = {
-                prompt: validatedArgs.prompt,
-                quality: validatedArgs.quality,
-                aspectRatio: finalAspectRatio,
-                svgText: true,
-            };
+            // Send initial progress
+            if (request.params._meta?.progressToken) {
+                (server as any).sendProgress(request.params._meta.progressToken, {
+                    content: [{ type: 'text', text: 'Starting SVG generation...' }],
+                    percentage: 0
+                });
+            }
 
-            const result = await svgmakerService.generateSVG(sdkParams as any);
+            // Start progress updates every 5 seconds
+            let currentProgress = 0;
+            const progressInterval = setInterval(() => {
+                if (request.params._meta?.progressToken && currentProgress < 95) {
+                    currentProgress += 25;
+                    (server as any).sendProgress(request.params._meta.progressToken, {
+                        content: [{ type: 'text', text: `Generating SVG... ${currentProgress}%` }],
+                        percentage: currentProgress
+                    });
+                }
+            }, 5000);
 
-            if (result.svgText) {
+            try {
+                const sdkParams = {
+                    prompt: validatedArgs.prompt,
+                    quality: validatedArgs.quality,
+                    aspectRatio: finalAspectRatio,
+                    svgText: true,
+                };
+
+                // The actual API call remains non-streaming
+                const result = await svgmakerService.generateSVG(sdkParams as any);
+
+                // Send completion progress
+                if (request.params._meta?.progressToken) {
+                    (server as any).sendProgress(request.params._meta.progressToken, {
+                        content: [{ type: 'text', text: 'SVG generation complete!' }],
+                        percentage: 100
+                    });
+                }
+
+                if (result.svgText) {
                 await fileUtils.writeFile(validatedOutputPath, result.svgText);
                 return {
                     content: [{ type: 'text', text: `SVG generated successfully: ${validatedOutputPath}` } as TextContent]
                 };
-            } else {
-                throw new Error("SVGMaker API did not return SVG content.");
+                } else {
+                    throw new Error("SVGMaker API did not return SVG content.");
+                }
+            } finally {
+                // Clean up the interval
+                clearInterval(progressInterval);
             }
         } catch (error: any) {
             return {

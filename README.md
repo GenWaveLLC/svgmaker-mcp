@@ -1,146 +1,62 @@
-# SVGMaker MCP Server
+# @genwave/svgmaker-mcp
 
-An MCP (Model Context Protocol) server that enables LLMs to programmatically generate, edit, and convert SVG images using the SVGMaker API and save them to the local filesystem.
+<div align="center">
+  <h3>SVGMaker MCP Server</h3>
+  <p>A powerful MCP server for generating, editing, and converting SVG images using AI</p>
 
-## Features
+  [![npm version](https://img.shields.io/npm/v/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
+  [![License](https://img.shields.io/npm/l/@genwave/svgmaker-mcp.svg)](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE)
+  [![Node.js Version](https://img.shields.io/node/v/@genwave/svgmaker-mcp.svg)](https://nodejs.org)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org)
+</div>
 
-- **SVG Generation**: Generate SVG images from text prompts with customizable quality and aspect ratio
-- **SVG Editing**: Edit existing SVGs or images using text prompts
-- **Image Conversion**: Convert any image file to SVG format
-- **Secure File Operations**: Built-in path validation and security checks
-- **Rate Limiting**: Configurable API rate limiting (default: 2 requests per minute)
-- **TypeScript**: Full TypeScript support with type safety
+## 🌟 Highlights
 
-## Installation
+- **🎨 AI-Powered SVG Generation**: Create SVGs from text descriptions
+- **✏️ Smart SVG Editing**: Edit existing SVGs with natural language
+- **🔄 Image-to-SVG Conversion**: Convert any image to scalable SVG
+- **🔒 Secure File Operations**: Built-in path validation and security
+- **⚡ Real-Time Progress**: Live updates during operations
+- **📝 Type Safety**: Full TypeScript support with type definitions
 
-1. Clone this repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Copy the environment template:
-   ```bash
-   cp .env.example .env
-   ```
-4. Edit `.env` and add your SVGMaker API key:
-   ```
-   SVGMMAKER_API_KEY="your_actual_api_key_here"
-   
-   # Optional: Custom base URL and rate limit
-   # SVGMMAKER_BASE_URL="https://svgmaker.io/api"
-   # SVGMMAKER_RATE_LIMIT_RPM="2"
-   ```
+## 🚀 Quick Start
 
-## Building
+### Installation
 
 ```bash
-npm run build
+# npm
+npm install @genwave/svgmaker-mcp
+
+# yarn
+yarn add @genwave/svgmaker-mcp
+
+# pnpm
+pnpm add @genwave/svgmaker-mcp
 ```
 
-## Running
+### Basic Setup
 
+1. Create .env file:
 ```bash
-npm start
+SVGMMAKER_API_KEY="your_api_key_here"
 ```
 
-For development with auto-reload:
+2. Start the server:
 ```bash
-npm run dev
+npx svgmaker-mcp
 ```
 
-## Configuration
+## 🔌 LLM Integrations
 
-The following environment variables can be configured in your `.env` file:
+### Claude Desktop
 
-- `SVGMMAKER_API_KEY` (required): Your SVGMaker API key for authentication
-- `SVGMMAKER_RATE_LIMIT_RPM` (optional): Rate limit in requests per minute (default: 2)
-- `SVGMMAKER_BASE_URL` (optional): Custom base URL for the SVGMaker API (default: https://svgmaker.io/api)
-
-## Tools Available
-
-### `svgmaker_generate`
-
-Generates an SVG image from a text prompt and saves it to a specified local path.
-
-**Parameters:**
-- `prompt` (required): Text description of the SVG to generate
-- `output_path` (required): Local file path where the SVG will be saved (must end with .svg)
-- `quality` (optional): Quality level - `"low"`, `"medium"`, or `"high"`
-  - `low`/`medium`: Uses automatic aspect ratio
-  - `high`: Uses square aspect ratio by default
-- `aspectRatio` (optional): Override aspect ratio - `"square"`, `"portrait"`, or `"landscape"`
-- `background` (optional): Background type - `"auto"`, `"transparent"`, or `"opaque"`
-
-**Example:**
-```json
-{
-  "prompt": "A simple blue circle with a red border",
-  "output_path": "./generated_circle.svg",
-  "quality": "high",
-  "aspectRatio": "square"
-}
-```
-
-### `svgmaker_edit`
-
-Edits an existing image/SVG file based on a text prompt and saves the result to a specified local path.
-
-**Parameters:**
-- `input_path` (required): Absolute file path to the image/SVG to edit
-- `prompt` (required): Text description of the edits to make
-- `output_path` (required): Local file path where the edited SVG will be saved (must end with .svg)
-- `quality` (optional): Quality level - `"low"`, `"medium"`, or `"high"`
-  - `low`/`medium`: Uses automatic aspect ratio
-  - `high`: Uses square aspect ratio by default
-- `aspectRatio` (optional): Override aspect ratio - `"auto"`, `"square"`, `"portrait"`, or `"landscape"`
-- `background` (optional): Background type - `"auto"`, `"transparent"`, or `"opaque"`
-
-**Example:**
-```json
-{
-  "input_path": "/absolute/path/to/input.svg",
-  "prompt": "Make it more vibrant and add a blue border",
-  "output_path": "./edited_image.svg",
-  "quality": "high",
-  "aspectRatio": "square",
-  "background": "transparent"
-}
-```
-
-### `svgmaker_convert`
-
-Converts an image file to SVG format and saves it to a specified local path.
-
-**Parameters:**
-- `input_path` (required): Absolute file path to the image file to convert
-- `output_path` (required): Local file path where the SVG will be saved (must end with .svg)
-
-**Example:**
-```json
-{
-  "input_path": "/absolute/path/to/image.png",
-  "output_path": "./converted_image.svg"
-}
-```
-
-## Testing with MCP Inspector
-
-You can test the server using the MCP Inspector:
-
-```bash
-npx @modelcontextprotocol/inspector node build/index.js
-```
-
-## Claude Desktop Configuration
-
-To use this server with Claude Desktop, add the following to your `claude_desktop_config.json`:
-
+1. Add to claude_desktop_config.json:
 ```json
 {
   "mcpServers": {
     "svgmaker": {
       "command": "node",
-      "args": ["/absolute/path/to/your/svgmaker-mcp-server/build/index.js"],
+      "args": ["/path/to/node_modules/@genwave/svgmaker-mcp/build/index.js"],
       "env": {
         "SVGMMAKER_API_KEY": "your_api_key_here"
       }
@@ -149,19 +65,163 @@ To use this server with Claude Desktop, add the following to your `claude_deskto
 }
 ```
 
-## Security
+2. Example Claude prompt:
+```
+Generate an SVG of a minimalist mountain landscape:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_generate",
+  "arguments": {
+    "prompt": "Minimalist mountain landscape with sun",
+    "output_path": "./landscape.svg",
+    "quality": "high",
+    "aspectRatio": "landscape"
+  }
+}
+</mcp>
+```
 
-- Basic path validation prevents access to system directories
-- File operations are restricted to safe locations
-- All user inputs are validated before processing
+### Cursor
 
-## Development Roadmap
+1. Configure in cursor settings:
+```json
+{
+  "mcpServers": {
+    "svgmaker": {
+      "type": "local",
+      "command": "npx",
+      "args": ["@genwave/svgmaker-mcp"]
+    }
+  }
+}
+```
 
-- [x] Phase 1: Basic SVG generation tool
-- [x] Phase 2: Add edit and convert tools
-- [ ] Phase 3: Enhanced error handling and progress notifications
-- [ ] Phase 4: Complete documentation and NPM packaging
+2. Example usage in Cursor:
+```
+Use svgmaker to edit the logo.svg file and make it more modern:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_edit",
+  "arguments": {
+    "input_path": "./logo.svg",
+    "prompt": "Make it more modern and minimalist",
+    "output_path": "./modern_logo.svg",
+    "quality": "high"
+  }
+}
+</mcp>
+```
 
-## License
+## 🛠️ Available Tools
 
-MIT
+### svgmaker_generate
+
+Generate SVG images from text descriptions.
+
+```json
+{
+  "prompt": "A minimalist logo with geometric shapes",
+  "output_path": "./logo.svg",
+  "quality": "high",
+  "aspectRatio": "square",
+  "background": "transparent"
+}
+```
+
+### svgmaker_edit
+
+Edit existing SVGs or images with natural language.
+
+```json
+{
+  "input_path": "/path/to/input.svg",
+  "prompt": "Add a gradient background and make it more vibrant",
+  "output_path": "./enhanced.svg",
+  "quality": "high",
+  "background": "opaque"
+}
+```
+
+### svgmaker_convert
+
+Convert images to SVG format.
+
+```json
+{
+  "input_path": "/path/to/image.png",
+  "output_path": "./vector.svg"
+}
+```
+
+## ⚙️ Configuration
+
+Environment variables in `.env`:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SVGMMAKER_API_KEY` | Yes | - | Your SVGMaker API key |
+| `SVGMMAKER_RATE_LIMIT_RPM` | No | 2 | API rate limit (requests/minute) |
+| `SVGMMAKER_BASE_URL` | No | https://svgmaker.io/api | Custom API endpoint |
+
+## 🔍 Development
+
+### Local Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/GenWaveLLC/svgmaker-mcp.git
+cd svgmaker-mcp
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Run in development mode:
+```bash
+npm run dev
+```
+
+### Testing
+
+Use the MCP Inspector for testing:
+```bash
+npx @modelcontextprotocol/inspector node build/index.js
+```
+
+## 🔐 Security
+
+- ✅ Path validation prevents directory traversal
+- ✅ Input sanitization for all parameters
+- ✅ Secure file operation handling
+- ✅ Environment variable protection
+- ✅ Rate limiting support
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Make your changes
+4. Submit a pull request
+
+Check our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## 📚 Documentation
+
+- [API Documentation](docs/api/)
+- [Development Guide](docs/development.md)
+- [Examples](docs/examples/)
+- [Security Guide](docs/security.md)
+
+## 🆘 Support
+
+- 📖 [Documentation](https://github.com/GenWaveLLC/svgmaker-mcp/tree/main/docs)
+- 🐛 [Issue Tracker](https://github.com/GenWaveLLC/svgmaker-mcp/issues)
+- 💬 [Discussions](https://github.com/GenWaveLLC/svgmaker-mcp/discussions)
+
+## 📜 License
+
+MIT © [Genwave LLC](https://github.com/GenWaveLLC)

@@ -2,7 +2,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { 
     CallToolRequestSchema,
     ListToolsRequestSchema,
-    TextContent 
+    TextContent,
+    RequestMeta
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -29,7 +30,7 @@ export function registerConvertTool(server: Server) {
     });
 
     // Register the call tool handler if not already registered
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }) => {
         const { name, arguments: args } = request.params;
         
         if (name !== "svgmaker_convert") {
@@ -48,20 +49,54 @@ export function registerConvertTool(server: Server) {
             // Read the input file
             const inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
 
-            const sdkParams = {
-                file: inputImage,
-                svgText: true,
-            };
+            // Send initial progress
+            if (request.params._meta?.progressToken) {
+                (server as any).sendProgress(request.params._meta.progressToken, {
+                    content: [{ type: 'text', text: 'Starting image conversion...' }],
+                    percentage: 0
+                });
+            }
 
-            const result = await svgmakerService.convertImageToSVG(sdkParams as any);
+            // Start progress updates every 5 seconds
+            let currentProgress = 0;
+            const progressInterval = setInterval(() => {
+                if (request.params._meta?.progressToken && currentProgress < 95) {
+                    currentProgress += 25;
+                    (server as any).sendProgress(request.params._meta.progressToken, {
+                        content: [{ type: 'text', text: `Converting image... ${currentProgress}%` }],
+                        percentage: currentProgress
+                    });
+                }
+            }, 5000);
 
-            if (result.svgText) {
+            try {
+                const sdkParams = {
+                    file: inputImage,
+                    svgText: true,
+                };
+
+                // The actual API call remains non-streaming
+                const result = await svgmakerService.convertImageToSVG(sdkParams as any);
+
+                // Send completion progress
+                if (request.params._meta?.progressToken) {
+                    (server as any).sendProgress(request.params._meta.progressToken, {
+                        content: [{ type: 'text', text: 'Image conversion complete!' }],
+                        percentage: 100
+                    });
+                }
+
+                if (result.svgText) {
                 await fileUtils.writeFile(validatedOutputPath, result.svgText);
                 return {
                     content: [{ type: 'text', text: `Image converted to SVG successfully: ${validatedOutputPath}` } as TextContent]
                 };
-            } else {
-                throw new Error("SVGMaker API did not return SVG content.");
+                } else {
+                    throw new Error("SVGMaker API did not return SVG content.");
+                }
+            } finally {
+                // Clean up the interval
+                clearInterval(progressInterval);
             }
         } catch (error: any) {
             return {
