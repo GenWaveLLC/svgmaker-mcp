@@ -9,9 +9,9 @@ export function initializeSvgmakerService(
 ) {
   const rateLimit = rateLimitRpmStr ? parseInt(rateLimitRpmStr, 10) : 2;
   const config: any = {
-    logging: true, // Enable logging to see API requests
+    logging: false, // Disable logging to prevent stdout pollution
     rateLimit: rateLimit, // RPM
-    debug: true, // Enable debug mode if available
+    debug: false, // Disable debug mode
   };
 
   // Add baseUrl to config if provided
@@ -35,11 +35,8 @@ export async function generateSVG(
   params: SVGMakerTypes.GenerateParams
 ): Promise<SVGMakerTypes.GenerateResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  // Ensure svgText is true to get the content
   const configuredParams = { ...params, svgText: true };
-  console.log('Sending generate request with params:', configuredParams);
   const result = await svgMaker.generate.configure(configuredParams).execute();
-  console.log('Generate request successful');
   return result;
 }
 
