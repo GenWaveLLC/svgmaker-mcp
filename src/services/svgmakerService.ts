@@ -12,7 +12,6 @@ export function initializeSvgmakerService(apiKey: string, rateLimitRpmStr?: stri
     
     // Add baseUrl to config if provided
     if (baseUrl) {
-        console.log('Using custom base URL:', baseUrl);
         config.baseUrl = baseUrl;
     } else {
         console.log('No custom base URL provided, using SDK default');
