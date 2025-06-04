@@ -32,7 +32,7 @@ export function registerGenerateTool(server: Server) {
         {
           name: 'svgmaker_generate',
           description:
-            'Generates an SVG image from a text prompt using SVGMaker API and saves it to a specified local path.',
+            'Generates an SVG image from a detailed text prompt using SVGMaker API and saves it to a specified local path. For best results, provide a clear, detailed description of the desired image including style, colors, composition, and key elements. If quality is not specified, medium quality will be used by default.',
           inputSchema: zodToJsonSchema(GenerateToolInputSchema),
         },
       ],

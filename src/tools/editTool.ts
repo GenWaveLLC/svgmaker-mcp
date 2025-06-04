@@ -35,7 +35,7 @@ export function registerEditTool(server: Server) {
         {
           name: 'svgmaker_edit',
           description:
-            'Edits an existing image/SVG file based on a text prompt using SVGMaker API and saves it to a specified local path.',
+            'Edits an existing image/SVG file based on a text prompt using SVGMaker API and saves it to a specified local path. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
           inputSchema: zodToJsonSchema(EditToolInputSchema),
         },
       ],

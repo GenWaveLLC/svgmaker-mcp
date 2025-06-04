@@ -25,7 +25,7 @@ export function registerConvertTool(server: Server) {
         {
           name: 'svgmaker_convert',
           description:
-            'Converts an image file to SVG format using SVGMaker API and saves it to a specified local path.',
+            'Converts an image file to SVG format using SVGMaker API and saves it to a specified local path. Supports various image formats including PNG, JPEG, and other common bitmap formats. The resulting SVG will be a vector representation of the original image, optimized for scalability and compatibility with vector graphics tools.',
           inputSchema: zodToJsonSchema(ConvertToolInputSchema),
         },
       ],
