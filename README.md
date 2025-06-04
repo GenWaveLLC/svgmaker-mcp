@@ -232,6 +232,32 @@ Use the MCP Inspector for testing:
 npx @modelcontextprotocol/inspector node build/index.js
 ```
 
+### CI/CD Workflow
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+1. **Continuous Integration**
+   - Runs on every push to main branch and pull requests
+   - Performs linting, type checking, and building
+   - Ensures code quality and consistency
+
+2. **Releasing a New Version**
+   - To release a patch version (bug fixes):
+     ```bash
+     npm run release:patch
+     ```
+   - To release a minor version (new features):
+     ```bash
+     npm run release:minor
+     ```
+   - To release a major version (breaking changes):
+     ```bash
+     npm run release:major
+     ```
+
+3. **Publishing**
+   - Automatically publishes to npm when a new version tag is pushed
+
 ## 🔐 Security
 
 - ✅ Path validation prevents directory traversal

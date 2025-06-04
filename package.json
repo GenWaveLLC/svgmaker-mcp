@@ -19,7 +19,20 @@
     "start": "node build/index.js",
     "dev": "ts-node-dev --esm src/index.ts",
     "prepare": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Warning: no tests implemented yet\" && exit 0",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm run build",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "release:shared": "git add package.json && git commit --amend --no-edit && git tag -a v$(node -p \"require('./package.json').version\") -m \"Release v$(node -p \"require('./package.json').version\")\" && git push --follow-tags",
+    "release:patch": "npm run version:patch && npm run release:shared",
+    "release:minor": "npm run version:minor && npm run release:shared",
+    "release:major": "npm run version:major && npm run release:shared"
   },
   "keywords": [
     "mcp",
@@ -39,13 +52,19 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@genwave/svgmaker-sdk": "^0.2.2",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "dotenv": "^16.5.0",
-    "@genwave/svgmaker-sdk": "^0.2.2",
     "zod": "^3.25.46"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.1",
+    "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
