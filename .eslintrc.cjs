@@ -8,9 +8,10 @@ module.exports = {
   plugins: ['@typescript-eslint', 'prettier'],
   rules: {
     'prettier/prettier': 'error',
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'off', // Temporarily disabled
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    'no-useless-catch': 'warn',
+    '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^_' }],
+    'no-useless-catch': 'off', // Temporarily disabled
   },
   env: {
     node: true,

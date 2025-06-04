@@ -35,40 +35,28 @@ export async function generateSVG(
   params: SVGMakerTypes.GenerateParams
 ): Promise<SVGMakerTypes.GenerateResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  try {
-    // Ensure svgText is true to get the content
-    const configuredParams = { ...params, svgText: true };
-    console.log('Sending generate request with params:', configuredParams);
-    const result = await svgMaker.generate.configure(configuredParams).execute();
-    console.log('Generate request successful');
-    return result;
-  } catch (error) {
-    throw error; // Re-throw to be caught by tool handler
-  }
+  // Ensure svgText is true to get the content
+  const configuredParams = { ...params, svgText: true };
+  console.log('Sending generate request with params:', configuredParams);
+  const result = await svgMaker.generate.configure(configuredParams).execute();
+  console.log('Generate request successful');
+  return result;
 }
 
 export async function editSVG(
   params: SVGMakerTypes.EditParams
 ): Promise<SVGMakerTypes.EditResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  try {
-    const configuredParams = { ...params, svgText: true };
-    const result = await svgMaker.edit.configure(configuredParams).execute();
-    return result;
-  } catch (error) {
-    throw error;
-  }
+  const configuredParams = { ...params, svgText: true };
+  const result = await svgMaker.edit.configure(configuredParams).execute();
+  return result;
 }
 
 export async function convertImageToSVG(
   params: SVGMakerTypes.ConvertParams
 ): Promise<SVGMakerTypes.ConvertResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  try {
-    const configuredParams = { ...params, svgText: true };
-    const result = await svgMaker.convert.configure(configuredParams).execute();
-    return result;
-  } catch (error) {
-    throw error;
-  }
+  const configuredParams = { ...params, svgText: true };
+  const result = await svgMaker.convert.configure(configuredParams).execute();
+  return result;
 }
