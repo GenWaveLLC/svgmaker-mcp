@@ -34,18 +34,18 @@ export async function resolveAndValidatePath(
     const dir = path.dirname(absolutePath);
     try {
       await fs.access(dir, fs.constants.W_OK);
-    } catch (err) {
+    } catch {
       // Try to create the directory if it doesn't exist
       try {
         await fs.mkdir(dir, { recursive: true });
-      } catch (mkdirErr) {
+      } catch {
         throw new Error(`Directory "${dir}" is not writable and could not be created.`);
       }
     }
   } else if (accessType === 'read') {
     try {
       await fs.access(absolutePath, fs.constants.R_OK);
-    } catch (err) {
+    } catch {
       throw new Error(`File "${absolutePath}" is not readable or does not exist.`);
     }
   }
@@ -55,7 +55,7 @@ export async function resolveAndValidatePath(
 export async function writeFile(filePath: string, content: string): Promise<void> {
   try {
     await fs.writeFile(filePath, content, 'utf8');
-  } catch (error) {
+  } catch {
     throw new Error(`Failed to write file: ${filePath}`);
   }
 }
@@ -63,7 +63,7 @@ export async function writeFile(filePath: string, content: string): Promise<void
 export async function readFileToBuffer(filePath: string): Promise<Buffer> {
   try {
     return await fs.readFile(filePath);
-  } catch (error) {
+  } catch {
     throw new Error(`Failed to read file: ${filePath}`);
   }
 }
