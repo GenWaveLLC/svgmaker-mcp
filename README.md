@@ -91,12 +91,11 @@ npx svgmaker-mcp
 {
   "mcpServers": {
     "svgmaker": {
-      "command": "node",
-      "args": ["./node_modules/@genwave/svgmaker-mcp/build/index.js"],
+      "command": "npx",
+      "args": ["@genwave/svgmaker-mcp@latest"],
       "transport": "stdio",
       "env": {
-        "SVGMAKER_API_KEY": "your_api_key_here",
-        "SVGMAKER_RATE_LIMIT_RPM": "2"
+        "SVGMAKER_API_KEY": "your_api_key_here"
       }
     }
   }
@@ -129,11 +128,10 @@ Generate an SVG of a minimalist mountain landscape:
     "svgmaker": {
       "type": "local",
       "command": "npx",
-      "args": ["@genwave/svgmaker-mcp"],
+      "args": ["@genwave/svgmaker-mcp@latest"],
       "transport": "stdio",
       "env": {
-        "SVGMAKER_API_KEY": "your_api_key_here",
-        "SVGMAKER_RATE_LIMIT_RPM": "2"
+        "SVGMAKER_API_KEY": "your_api_key_here"
       }
     }
   }
