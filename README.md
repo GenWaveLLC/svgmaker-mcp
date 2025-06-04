@@ -1,14 +1,11 @@
-# @genwave/svgmaker-mcp
+# SVGMaker MCP Server
+A powerful MCP server for generating, editing, and converting SVG images using AI
 
-<div align="center">
-  <h3>SVGMaker MCP Server</h3>
-  <p>A powerful MCP server for generating, editing, and converting SVG images using AI</p>
+[![npm version](https://img.shields.io/npm/v/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
+[![License](https://img.shields.io/npm/l/@genwave/svgmaker-mcp.svg)](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/GenWaveLLC/svgmaker-mcp/ci.yml?branch=main)](https://github.com/GenWaveLLC/svgmaker-mcp/actions)
+[![npm downloads](https://img.shields.io/npm/dm/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
 
-  [![npm version](https://img.shields.io/npm/v/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
-  [![License](https://img.shields.io/npm/l/@genwave/svgmaker-mcp.svg)](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE)
-  [![Node.js Version](https://img.shields.io/node/v/@genwave/svgmaker-mcp.svg)](https://nodejs.org)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org)
-</div>
 
 ## 🌟 Highlights
 
@@ -44,13 +41,13 @@
   - Linux (Ubuntu 20.04+, CentOS 8+)
   - macOS (10.15+)
   - Windows (10+)
-- SVGMaker API key ([Get one here](https://svgmaker.io))
+- SVGMaker API key ([Get one here](https://svgmaker.io/account))
 
 ## 📦 Package Structure
 
 ```
 @genwave/svgmaker-mcp/
-├── build/              # Compiled JavaScript files
+├── build/             # Compiled JavaScript files
 ├── docs/              # Documentation
 │   └── api/           # API documentation
 ├── src/               # Source TypeScript files

@@ -17,18 +17,9 @@ export function initializeSvgmakerService(
   // Add baseUrl to config if provided
   if (baseUrl) {
     config.baseUrl = baseUrl;
-  } else {
-    console.log('No custom base URL provided, using SDK default');
   }
 
   svgMaker = new SVGMakerClient(apiKey, config);
-
-  // Log configuration
-  console.log('SVGMaker SDK Configuration:', {
-    baseUrl: config.baseUrl || 'default',
-    rateLimit,
-    logging: config.logging,
-  });
 }
 
 export async function generateSVG(

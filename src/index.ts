@@ -366,6 +366,5 @@ async function main() {
 }
 
 main().catch((_error) => {
-  console.error('Server failed to start:', _error);
   process.exit(1);
 });

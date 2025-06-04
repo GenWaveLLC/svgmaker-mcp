@@ -17,7 +17,7 @@
   "scripts": {
     "build": "rimraf build && tsc",
     "start": "node build/index.js",
-    "dev": "ts-node-dev --esm src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "prepare": "npm run build",
     "test": "echo \"Warning: no tests implemented yet\" && exit 0",
     "lint": "eslint . --ext .ts --config .eslintrc.json",
@@ -67,6 +67,7 @@
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
