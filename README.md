@@ -86,7 +86,8 @@ npx svgmaker-mcp
 
 ## 🔌 LLM Integrations
 
-### Claude Desktop
+<details>
+<summary>🔌 Claude Desktop</summary>
 
 1. Add to claude_desktop_config.json:
 ```json
@@ -120,8 +121,18 @@ Generate an SVG of a minimalist mountain landscape:
 }
 </mcp>
 ```
+</details>
 
-### Cursor
+<details>
+<summary>🔌 Cursor</summary>
+
+<div align="center">
+  <a href="https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D">
+    <img src="https://img.shields.io/badge/Install%20in%20Cursor-00A0E4?style=for-the-badge&logo=cursor&logoColor=white" alt="Install in Cursor" />
+  </a>
+</div>
+
+Or configure manually:
 
 1. Configure in cursor settings:
 ```json
@@ -156,6 +167,125 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 }
 </mcp>
 ```
+</details>
+
+<details>
+<summary>🔌 Visual Studio Code</summary>
+
+<div align="center">
+  <a href="https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D">
+    <img src="https://img.shields.io/badge/Install%20in%20VS%20Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white" alt="Install in VS Code" />
+  </a>
+</div>
+
+Or configure manually:
+
+1. Configure in settings.json:
+```json
+{
+  "servers": {
+    "svgmaker": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@genwave/svgmaker-mcp"],
+      "env": {
+        "SVGMAKER_API_KEY": "<your_api_key>"
+      }
+    }
+  }
+}
+```
+
+2. Example usage in VS Code:
+```
+Generate a new icon for my app:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_generate",
+  "arguments": {
+    "prompt": "Modern app icon with abstract geometric shapes",
+    "output_path": "./assets/icon.svg",
+    "quality": "high",
+    "aspectRatio": "square"
+  }
+}
+</mcp>
+```
+</details>
+
+<details>
+<summary>🔌 WindSurf</summary>
+
+1. Configure in settings:
+```json
+{
+  "mcpServers": {
+    "svgmaker": {
+      "command": "npx",
+      "args": ["-y", "@genwave/svgmaker-mcp"],
+      "env": {
+        "SVGMAKER_API_KEY": "<your_api_key>"
+      }
+    }
+  }
+}
+```
+
+2. Example usage in WindSurf:
+```
+Convert the company logo to SVG:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_convert",
+  "arguments": {
+    "input_path": "./branding/logo.png",
+    "output_path": "./branding/vector_logo.svg"
+  }
+}
+</mcp>
+```
+</details>
+
+<details>
+<summary>🔌 Zed</summary>
+
+1. Configure in settings:
+```json
+{
+  "context_servers": {
+    "svgmaker": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "@genwave/svgmaker-mcp"],
+        "env": {
+          "SVGMAKER_API_KEY": "<your_api_key>"
+        }
+      },
+      "settings": {}
+    }
+  }
+}
+```
+
+2. Example usage in Zed:
+```
+Edit an existing SVG file:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_edit",
+  "arguments": {
+    "input_path": "./diagrams/flowchart.svg",
+    "prompt": "Add rounded corners and smooth gradients",
+    "output_path": "./diagrams/enhanced_flowchart.svg",
+    "quality": "high"
+  }
+}
+</mcp>
+```
+</details>
 
 ## 🛠️ Available Tools
 
