@@ -6,6 +6,11 @@ A powerful MCP server for generating, editing, and converting SVG images using A
 [![Build Status](https://img.shields.io/github/actions/workflow/status/GenWaveLLC/svgmaker-mcp/ci.yml?branch=main)](https://github.com/GenWaveLLC/svgmaker-mcp/actions)
 [![npm downloads](https://img.shields.io/npm/dm/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
 
+## 🎨 MCP Server in Action
+
+![MCP Capabilities Demo](docs/mcp-capabilities-demo.svg)
+
+*This very illustration came to life through our own SVGMaker MCP server—a living example of AI assistants and vector graphics working in perfect harmony via the Model Context Protocol.*
 
 ## 🌟 Highlights
 
@@ -89,7 +94,7 @@ npx svgmaker-mcp
   "mcpServers": {
     "svgmaker": {
       "command": "npx",
-      "args": ["@genwave/svgmaker-mcp@latest"],
+      "args": ["@genwave/svgmaker-mcp"],
       "transport": "stdio",
       "env": {
         "SVGMAKER_API_KEY": "your_api_key_here"
@@ -125,7 +130,7 @@ Generate an SVG of a minimalist mountain landscape:
     "svgmaker": {
       "type": "local",
       "command": "npx",
-      "args": ["@genwave/svgmaker-mcp@latest"],
+      "args": ["@genwave/svgmaker-mcp"],
       "transport": "stdio",
       "env": {
         "SVGMAKER_API_KEY": "your_api_key_here"
@@ -156,14 +161,15 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 
 ### svgmaker_generate
 
-Generate SVG images from text descriptions.
+Transform your ideas into stunning SVG artwork using AI-powered creativity.
 
+**How we created the header illustration:**
 ```json
 {
-  "prompt": "A minimalist logo with geometric shapes",
-  "output_path": "./logo.svg",
-  "quality": "high",
-  "aspectRatio": "square",
+  "prompt": "Modern tech illustration showing an MCP server connecting multiple AI assistants to SVG generation capabilities. Show interconnected nodes, data flow, and SVG icons. Use a clean, professional design with blue and purple gradients, geometric shapes, and modern typography elements.",
+  "output_path": "./docs/mcp-capabilities-demo.svg",
+  "quality": "medium",
+  "aspectRatio": "landscape",
   "background": "transparent"
 }
 ```
@@ -195,11 +201,37 @@ Convert images to SVG format.
 
 ## ⚙️ Configuration
 
-Required environment variable:
+### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `SVGMAKER_API_KEY` | Your SVGMaker API key |
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `SVGMAKER_API_KEY` | Your SVGMaker API key | ✅ Yes | - |
+| `SVGMMAKER_RATE_LIMIT_RPM` | API rate limit (requests per minute) | ❌ No | 2 |
+| `SVGMAKER_BASE_URL` | Custom SVGMaker API base URL | ❌ No | `https://svgmaker.io/api` |
+| `SVGMAKER_DEBUG` | Enable debug logging | ❌ No | `false` |
+
+### Debug Logging
+
+The server includes comprehensive logging for debugging and monitoring:
+
+**Enable Logging:**
+```bash
+# Enable debug logging
+SVGMAKER_DEBUG=true npx @genwave/svgmaker-mcp
+
+# Or set NODE_ENV to development
+NODE_ENV=development npx @genwave/svgmaker-mcp
+```
+
+**Log Files Location:**
+- **macOS/Linux**: `~/.cache/svgmaker-mcp/logs/`
+- **Windows**: `%LOCALAPPDATA%/svgmaker-mcp/logs/`
+- **Fallback**: `./logs/` (in project directory)
+
+**Log File Format:**
+```
+mcp-debug-2025-06-04T10-30-45-123Z.log
+```
 
 ## 🔍 Development
 
@@ -281,4 +313,4 @@ We welcome contributions! Please see our [Contributing Guide](https://github.com
 
 ## 📝 License
 
-MIT © [Genwave LLC](https://github.com/GenWaveLLC) - see the [LICENSE](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE) file for details.
+MIT © [Genwave AI](https://genwave.xyz) - see the [LICENSE](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE) file for details.

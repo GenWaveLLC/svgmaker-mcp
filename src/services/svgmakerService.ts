@@ -11,7 +11,9 @@ export function initializeSvgmakerService(
   const config: any = {
     logging: false, // Disable logging to prevent stdout pollution
     rateLimit: rateLimit, // RPM
-    debug: false, // Disable debug mode
+    debug: true, // Enable debug mode
+    timeout: 60000, // 60s timeout
+    maxRetries: 0, // Do not retry requests
   };
 
   // Add baseUrl to config if provided

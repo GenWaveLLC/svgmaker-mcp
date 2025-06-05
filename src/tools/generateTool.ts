@@ -1,14 +1,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  TextContent,
-  RequestMeta,
-} from '@modelcontextprotocol/sdk/types.js';
+import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
+import { logToFile } from '../utils/logUtils.js';
+import { ProgressManager } from '../utils/progressUtils.js';
 
 const GenerateToolInputSchema = z.object({
   prompt: z.string().min(1, 'Prompt cannot be empty.'),
@@ -24,117 +21,115 @@ const GenerateToolInputSchema = z.object({
   background: z.enum(['auto', 'transparent', 'opaque']).optional().describe('Background type'),
 });
 
-export function registerGenerateTool(server: Server) {
-  // Register the list tools handler if not already registered
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        {
-          name: 'svgmaker_generate',
-          description:
-            'Generates an SVG image from a detailed text prompt using SVGMaker API and saves it to a specified local path. For best results, provide a clear, detailed description of the desired image including style, colors, composition, and key elements. If quality is not specified, medium quality will be used by default.',
-          inputSchema: zodToJsonSchema(GenerateToolInputSchema),
-        },
-      ],
-    };
-  });
+export const generateToolDefinition = {
+  name: 'svgmaker_generate',
+  description:
+    'Generates an SVG image from a detailed text prompt using SVGMaker API and saves it to a specified local path. For best results, provide a clear, detailed description of the desired image including style, colors, composition, and key elements. If quality is not specified, medium quality will be used by default.',
+  inputSchema: zodToJsonSchema(GenerateToolInputSchema),
+};
 
-  // Register the call tool handler if not already registered
-  server.setRequestHandler(
-    CallToolRequestSchema,
-    async (request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }) => {
-      const { name, arguments: args } = request.params;
+export async function handleGenerateTool(
+  server: Server,
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+) {
+  const { arguments: args } = request.params;
 
-      if (name !== 'svgmaker_generate') {
-        throw new Error(`Unknown tool: ${name}`);
-      }
+  // Log that the tool is being called
+  logToFile('========== SVG GENERATE TOOL CALLED ==========');
+  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
+  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
-      try {
-        const validatedArgs = GenerateToolInputSchema.parse(args);
+  try {
+    const validatedArgs = GenerateToolInputSchema.parse(args);
 
-        // Note: In a real implementation, we'd need to get roots from the client
-        // For now, we'll use a simple path validation
-        const clientRoots: any[] = []; // server.getRoots() is not available in this SDK version
-        const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-          validatedArgs.output_path,
-          clientRoots,
-          'write'
-        );
+    // Note: In a real implementation, we'd need to get roots from the client
+    // For now, we'll use a simple path validation
+    const clientRoots: any[] = []; // server.getRoots() is not available in this SDK version
+    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
+      validatedArgs.output_path,
+      clientRoots,
+      'write'
+    );
 
-        // Determine aspect ratio based on quality and explicit aspectRatio
-        let finalAspectRatio = validatedArgs.aspectRatio;
-        if (!finalAspectRatio) {
-          if (validatedArgs.quality === 'high') {
-            finalAspectRatio = 'square';
-          } else {
-            finalAspectRatio = 'auto' as any; // low and medium use auto
-          }
-        }
-
-        // Send initial progress
-        if (request.params._meta?.progressToken) {
-          (server as any).sendProgress(request.params._meta.progressToken, {
-            content: [{ type: 'text', text: 'Starting SVG generation...' }],
-            percentage: 0,
-          });
-        }
-
-        // Start progress updates every 5 seconds
-        let currentProgress = 0;
-        const progressInterval = setInterval(() => {
-          if (request.params._meta?.progressToken && currentProgress < 95) {
-            currentProgress += 25;
-            (server as any).sendProgress(request.params._meta.progressToken, {
-              content: [{ type: 'text', text: `Generating SVG... ${currentProgress}%` }],
-              percentage: currentProgress,
-            });
-          }
-        }, 5000);
-
-        try {
-          const sdkParams = {
-            prompt: validatedArgs.prompt,
-            quality: validatedArgs.quality,
-            aspectRatio: finalAspectRatio,
-            svgText: true,
-          };
-
-          // The actual API call remains non-streaming
-          const result = await svgmakerService.generateSVG(sdkParams as any);
-
-          // Send completion progress
-          if (request.params._meta?.progressToken) {
-            (server as any).sendProgress(request.params._meta.progressToken, {
-              content: [{ type: 'text', text: 'SVG generation complete!' }],
-              percentage: 100,
-            });
-          }
-
-          if (result.svgText) {
-            await fileUtils.writeFile(validatedOutputPath, result.svgText);
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `SVG generated successfully: ${validatedOutputPath}`,
-                } as TextContent,
-              ],
-            };
-          } else {
-            throw new Error('SVGMaker API did not return SVG content.');
-          }
-        } finally {
-          // Clean up the interval
-          clearInterval(progressInterval);
-        }
-      } catch (error: any) {
-        return {
-          isError: true,
-          content: [
-            { type: 'text', text: `Error generating SVG: ${error.message}` } as TextContent,
-          ],
-        };
+    // Determine aspect ratio based on quality and explicit aspectRatio
+    let finalAspectRatio = validatedArgs.aspectRatio;
+    if (!finalAspectRatio) {
+      if (validatedArgs.quality === 'high') {
+        finalAspectRatio = 'square';
+      } else {
+        finalAspectRatio = 'auto' as any; // low and medium use auto
       }
     }
-  );
+
+    const progressManager = new ProgressManager({
+      server,
+      progressToken: request.params._meta?.progressToken,
+      totalSteps: 4,
+      messages: {
+        initial: 'Initializing SVG generation...',
+        preparing: 'Preparing API request...',
+        processing: 'AI is creating your SVG...',
+        saving: 'Saving SVG file...',
+        complete: 'SVG generation complete!',
+      },
+    });
+
+    // Send initial progress
+    await progressManager.sendInitialProgress();
+
+    try {
+      const sdkParams = {
+        prompt: validatedArgs.prompt,
+        quality: validatedArgs.quality,
+        aspectRatio: finalAspectRatio,
+        background: validatedArgs.background,
+        svgText: true,
+      };
+
+      // Update progress: preparing request
+      await progressManager.sendPreparingProgress();
+
+      // Update progress: making API call with periodic updates
+      await progressManager.startProcessingProgress();
+
+      let result;
+      try {
+        // The actual API call
+        result = await svgmakerService.generateSVG(sdkParams as any);
+      } finally {
+        // Clean up the progress interval
+        progressManager.stopProcessingProgress();
+      }
+
+      // Update progress: processing complete
+      await progressManager.sendSavingProgress();
+
+      if (result.svgText) {
+        await fileUtils.writeFile(validatedOutputPath, result.svgText);
+
+        // Send final progress
+        await progressManager.sendFinalProgress();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `SVG generated successfully: ${validatedOutputPath}`,
+            } as TextContent,
+          ],
+        };
+      } else {
+        throw new Error('SVGMaker API did not return SVG content.');
+      }
+    } catch (error: any) {
+      // Ensure cleanup on error
+      progressManager.cleanup();
+      throw error;
+    }
+  } catch (error: any) {
+    return {
+      isError: true,
+      content: [{ type: 'text', text: `Error generating SVG: ${error.message}` } as TextContent],
+    };
+  }
 }

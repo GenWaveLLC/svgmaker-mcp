@@ -289,7 +289,7 @@ const client = new SVGMakerClient('your-api-key', {
 
 ```
 [SVGMaker SDK][2024-01-15T10:30:45.123Z][INFO] SVGMaker SDK initialized
-[SVGMaker SDK][2024-01-15T10:30:46.250Z][DEBUG] Making API request to /generate
+[SVGMaker SDK][2024-01-15T10:30:46.250Z]Making API request to /generate
 ```
 
 ### Runtime Configuration
