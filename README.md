@@ -86,8 +86,7 @@ npx svgmaker-mcp
 
 ## 🔌 LLM Integrations
 
-<details>
-<summary>🔌 Claude Desktop</summary>
+### 🔌 Claude Desktop
 
 1. Add to claude_desktop_config.json:
 ```json
@@ -121,14 +120,34 @@ Generate an SVG of a minimalist mountain landscape:
 }
 </mcp>
 ```
-</details>
 
-<details>
-<summary>🔌 Cursor</summary>
+### 🔌 Cursor
+
+<style>
+.install-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;
+  font-weight: 500;
+  color: white;
+  transition: opacity 0.2s;
+}
+.install-button:hover {
+  opacity: 0.9;
+}
+.install-logo {
+  height: 24px;
+  margin-left: 12px;
+}
+</style>
 
 <div align="center">
-  <a href="https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D">
-    <img src="https://img.shields.io/badge/Install%20in%20Cursor-00A0E4?style=for-the-badge&logo=cursor&logoColor=white" alt="Install in Cursor" />
+  <a href="https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D" class="install-button" style="background: #000000">
+    Install SVGMaker MCP
+    <img src="public/cursor.svg" alt="Cursor Logo" class="install-logo">
   </a>
 </div>
 
@@ -167,14 +186,13 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 }
 </mcp>
 ```
-</details>
 
-<details>
-<summary>🔌 Visual Studio Code</summary>
+### 🔌 Visual Studio Code
 
 <div align="center">
-  <a href="https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D">
-    <img src="https://img.shields.io/badge/Install%20in%20VS%20Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white" alt="Install in VS Code" />
+  <a href="https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D" class="install-button" style="background: #007ACC">
+    Install SVGMaker MCP
+    <img src="public/vs-code.svg" alt="VS Code Logo" class="install-logo">
   </a>
 </div>
 
@@ -212,10 +230,8 @@ Generate a new icon for my app:
 }
 </mcp>
 ```
-</details>
 
-<details>
-<summary>🔌 WindSurf</summary>
+### 🔌 WindSurf
 
 1. Configure in settings:
 ```json
@@ -246,10 +262,8 @@ Convert the company logo to SVG:
 }
 </mcp>
 ```
-</details>
 
-<details>
-<summary>🔌 Zed</summary>
+### 🔌 Zed
 
 1. Configure in settings:
 ```json
@@ -285,7 +299,6 @@ Edit an existing SVG file:
 }
 </mcp>
 ```
-</details>
 
 ## 🛠️ Available Tools
 
