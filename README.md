@@ -1,6 +1,7 @@
 # SVGMaker MCP Server
-A powerful MCP server for generating, editing, and converting SVG images using AI
+A powerful MCP server for generating, editing, and converting SVG images using SVGMaker API.
 
+[![Website](https://img.shields.io/badge/Website-SVGMaker.io-blue)](https://svgmaker.io)
 [![npm version](https://img.shields.io/npm/v/@genwave/svgmaker-mcp.svg)](https://www.npmjs.com/package/@genwave/svgmaker-mcp)
 [![License](https://img.shields.io/npm/l/@genwave/svgmaker-mcp.svg)](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/GenWaveLLC/svgmaker-mcp/ci.yml?branch=main)](https://github.com/GenWaveLLC/svgmaker-mcp/actions)
