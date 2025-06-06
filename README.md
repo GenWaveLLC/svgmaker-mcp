@@ -163,7 +163,7 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 
 ### 🔌 Visual Studio Code
 
-[**Install SVGMaker MCP**&nbsp;<img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/vs-code.svg" alt="VS Code" width="24" align="absmiddle"/>](https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
+[**Install SVGMaker MCP**&nbsp;<img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/vs-code.svg" alt="VS Code" width="20" align="absmiddle"/>](https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
 
 Or configure manually:
 
