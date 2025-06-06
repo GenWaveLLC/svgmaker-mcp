@@ -123,7 +123,7 @@ Generate an SVG of a minimalist mountain landscape:
 
 ### 🔌 Cursor
 
-[**Install SVGMaker MCP** <img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/main/public/cursor.svg" alt="Cursor" width="24" align="absmiddle"/>](https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D)
+[**Install SVGMaker MCP** <img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/cursor.svg" alt="Cursor" width="24" align="absmiddle"/>](https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D)
 
 Or configure manually:
 
@@ -163,7 +163,7 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 
 ### 🔌 Visual Studio Code
 
-[**Install SVGMaker MCP** <img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/main/public/vs-code.svg" alt="VS Code" width="24" align="absmiddle"/>](https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
+[**Install SVGMaker MCP** <img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/vs-code.svg" alt="VS Code" width="24" align="absmiddle"/>](https://insiders.vscode.dev/redirect/mcp/install?name=svgmaker&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22apiKey%22%2C%22description%22%3A%22SVGMaker%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40genwave%2Fsvgmaker-mcp%22%5D%2C%22env%22%3A%7B%22SVGMAKER_API_KEY%22%3A%22%24%7Binput%3AapiKey%7D%22%7D%7D)
 
 Or configure manually:
 
