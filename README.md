@@ -123,7 +123,7 @@ Generate an SVG of a minimalist mountain landscape:
 
 ### 🔌 Cursor
 
-[**Install SVGMaker MCP**&nbsp;<img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/cursor.svg" alt="Cursor" width="24" align="absmiddle"/>](https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D)
+[**Install SVGMaker MCP**&nbsp;<img src="https://raw.githubusercontent.com/GenWaveLLC/svgmaker-mcp/readme-change/public/cursor.svg" alt="Cursor" width="20" align="absmiddle"/>](https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D)
 
 Or configure manually:
 
