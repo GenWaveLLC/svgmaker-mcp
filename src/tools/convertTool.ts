@@ -10,8 +10,16 @@ import { ProgressManager } from '../utils/progressUtils.js';
 const ConvertToolInputSchema = z.object({
   input_path: z
     .string()
-    .min(1, 'Input path cannot be empty. Must be an absolute path to the image file.'),
-  output_path: z.string().min(1, 'Output path cannot be empty.'),
+    .min(1, 'Input path cannot be empty.')
+    .describe(
+      'Absolute path to the existing image file to be converted to SVG format. Supports various bitmap formats including PNG, JPEG, GIF, BMP, TIFF, and WebP. Example: "/Users/username/Pictures/photo.jpg"'
+    ),
+  output_path: z
+    .string()
+    .min(1, 'Output path cannot be empty.')
+    .describe(
+      'Absolute file path where the generated SVG will be saved. Must include the .svg extension. The resulting file will be a vector representation optimized for scalability. Example: "/Users/username/Documents/vector-art.svg"'
+    ),
 });
 
 export const convertToolDefinition = {

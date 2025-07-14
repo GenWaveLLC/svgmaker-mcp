@@ -10,18 +10,42 @@ import { ProgressManager } from '../utils/progressUtils.js';
 const EditToolInputSchema = z.object({
   input_path: z
     .string()
-    .min(1, 'Input path cannot be empty. Must be an absolute path to the image file.'),
-  prompt: z.string().min(1, 'Prompt cannot be empty.'),
-  output_path: z.string().min(1, 'Output path cannot be empty.'),
+    .min(1, 'Input path cannot be empty.')
+    .describe(
+      'Absolute path to the existing image/SVG file to be edited. Supports various formats including PNG, JPEG, SVG, and other common image types. Example: "/Users/username/Documents/logo.svg"'
+    ),
+  prompt: z
+    .string()
+    .min(1, 'Prompt cannot be empty.')
+    .describe(
+      'Detailed instructions for how to modify the image. Be specific about changes like style adjustments, color modifications, element additions/removals, or layout changes. Example: "Change the background to blue and add a white border"'
+    ),
+  output_path: z
+    .string()
+    .min(1, 'Output path cannot be empty.')
+    .describe(
+      'Absolute file path where the generated SVG will be saved. Must include the .svg extension. Example: "/Users/username/Documents/modified-artwork.svg"'
+    ),
   quality: z
     .enum(['low', 'medium', 'high'])
     .optional()
-    .describe("Quality level - affects aspect ratio: low/medium use 'auto', high uses 'square'"),
+    .default('medium')
+    .describe(
+      'Quality level for SVG editing. Do not specifiy if not explicitely mentioned by the user. Affects processing time and detail level: low (fast, basic edits), medium (balanced quality and speed, default), high (best quality, forces square aspect ratio)'
+    ),
   aspectRatio: z
     .enum(['auto', 'portrait', 'landscape', 'square'])
     .optional()
-    .describe('Aspect ratio for the edited SVG'),
-  background: z.enum(['auto', 'transparent', 'opaque']).optional().describe('Background type'),
+    .describe(
+      'Aspect ratio for the edited SVG: auto (maintain original proportions), square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). Do not specifiy if not explicitely mentioned by the user. When not specified the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
+    ),
+  background: z
+    .enum(['auto', 'transparent', 'opaque'])
+    .optional()
+    .default('auto')
+    .describe(
+      'Background style for the edited SVG: auto (AI determines best, default), transparent (no background, preserves transparency), opaque (solid background color). Do not specify if not explicitly mentioned by the user.'
+    ),
 });
 
 export const editToolDefinition = {

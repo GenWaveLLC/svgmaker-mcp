@@ -8,17 +8,38 @@ import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 
 const GenerateToolInputSchema = z.object({
-  prompt: z.string().min(1, 'Prompt cannot be empty.'),
-  output_path: z.string().min(1, 'Output path cannot be empty.'),
+  prompt: z
+    .string()
+    .min(1, 'Prompt cannot be empty.')
+    .describe(
+      'A detailed text description of the SVG image to generate. Include style, colors, composition, and key visual elements for best results.'
+    ),
+  output_path: z
+    .string()
+    .min(1, 'Output path cannot be empty.')
+    .describe(
+      'Absolute file path where the generated SVG will be saved. Must include the .svg extension. Example: "/Users/username/Documents/artwork.svg"'
+    ),
   quality: z
     .enum(['low', 'medium', 'high'])
     .optional()
-    .describe("Quality level - affects aspect ratio: low/medium use 'auto', high uses 'square'"),
+    .default('medium')
+    .describe(
+      'Quality level for SVG generation. Affects processing time and detail level: low (fast, basic), medium (balanced, default, preferred if not specified explicitly by the user), high (best quality, forces square aspect ratio)'
+    ),
   aspectRatio: z
     .enum(['square', 'portrait', 'landscape'])
     .optional()
-    .describe('Aspect ratio for the generated SVG'),
-  background: z.enum(['auto', 'transparent', 'opaque']).optional().describe('Background type'),
+    .describe(
+      'Aspect ratio for the generated SVG: square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). If not specified by the user, no need to specify, as the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
+    ),
+  background: z
+    .enum(['auto', 'transparent', 'opaque'])
+    .optional()
+    .default('auto')
+    .describe(
+      'Background style: auto (AI determines best, default, preferred if not specified explicitly by the user), transparent (no background, good for overlays), opaque (solid background color)'
+    ),
 });
 
 export const generateToolDefinition = {

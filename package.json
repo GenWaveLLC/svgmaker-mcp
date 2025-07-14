@@ -52,7 +52,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@genwave/svgmaker-sdk": "^0.2.2",
+    "@genwave/svgmaker-sdk": "^0.3.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "dotenv": "^16.5.0",
     "zod": "^3.25.46"
