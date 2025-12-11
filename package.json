@@ -47,6 +47,10 @@
   ],
   "author": "Genwave",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GenWaveLLC/svgmaker-mcp"
+  },
   "private": false,
   "engines": {
     "node": ">=18.0.0"
