@@ -233,7 +233,7 @@ for await (const event of stream) {
 ```typescript
 interface SVGMakerConfig {
   apiKey: string;                    // API authentication key
-  baseUrl: string;                   // API base URL (default: "https://svgmaker.io/api")
+  baseUrl: string;                   // API base URL (default: "https://api.svgmaker.io")
   timeout: number;                   // Request timeout ms (default: 30000)
   maxRetries: number;                // Max retry attempts (default: 3)
   retryBackoffFactor: number;        // Retry delay factor ms (default: 300)
