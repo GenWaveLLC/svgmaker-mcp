@@ -47,7 +47,16 @@ const EditToolInputSchema = z.object({
       'Background style for the edited SVG: auto (AI determines best, default), transparent (no background, preserves transparency), opaque (solid background color). Do not specify if not explicitly mentioned by the user.'
     ),
   style: z
-    .enum(['flat', 'line_art', 'engraving', 'linocut', 'silhouette', 'isometric', 'cartoon', 'ghibli'])
+    .enum([
+      'flat',
+      'line_art',
+      'engraving',
+      'linocut',
+      'silhouette',
+      'isometric',
+      'cartoon',
+      'ghibli',
+    ])
     .optional()
     .describe(
       'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
@@ -147,7 +156,8 @@ export async function handleEditTool(
       const styleParams: Record<string, string> = {};
       if (validatedArgs.style) styleParams.style = validatedArgs.style;
       if (validatedArgs.color_mode) styleParams.color_mode = validatedArgs.color_mode;
-      if (validatedArgs.image_complexity) styleParams.image_complexity = validatedArgs.image_complexity;
+      if (validatedArgs.image_complexity)
+        styleParams.image_complexity = validatedArgs.image_complexity;
       if (validatedArgs.composition) styleParams.composition = validatedArgs.composition;
       if (validatedArgs.text_style) styleParams.text = validatedArgs.text_style;
 

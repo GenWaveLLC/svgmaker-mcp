@@ -28,11 +28,7 @@
     "prepublishOnly": "npm run lint && npm run build",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version",
-    "release:shared": "git add package.json package-lock.json && git commit --amend --no-edit && git tag -a v$(node -p \"require('./package.json').version\") -m \"Release v$(node -p \"require('./package.json').version\")\" && git push --follow-tags",
-    "release:patch": "npm run version:patch && npm run release:shared",
-    "release:minor": "npm run version:minor && npm run release:shared",
-    "release:major": "npm run version:major && npm run release:shared"
+    "version:major": "npm version major --no-git-tag-version"
   },
   "keywords": [
     "mcp",
