@@ -226,7 +226,7 @@ Convert the company logo to SVG:
 <mcp>
 {
   "server": "svgmaker",
-  "tool": "svgmaker_convert",
+  "tool": "svgmaker_ai_vectorize",
   "arguments": {
     "input_path": "./branding/logo.png",
     "output_path": "./branding/vector_logo.svg"
@@ -276,41 +276,43 @@ Edit an existing SVG file:
 
 ### svgmaker_generate
 
-Transform your ideas into stunning SVG artwork using AI-powered creativity.
+Generate SVG images from text prompts. Supports style parameters for fine-grained control over the output.
 
-**How we created the header illustration:**
 ```json
 {
-  "prompt": "Modern tech illustration showing an MCP server connecting multiple AI assistants to SVG generation capabilities. Show interconnected nodes, data flow, and SVG icons. Use a clean, professional design with blue and purple gradients, geometric shapes, and modern typography elements.",
-  "output_path": "./docs/mcp-capabilities-demo.svg",
+  "prompt": "A minimalist mountain landscape with sun",
+  "output_path": "/path/to/landscape.svg",
   "quality": "medium",
-  "aspectRatio": "landscape",
+  "style": "flat",
+  "color_mode": "few_colors",
+  "composition": "full_scene",
   "background": "transparent"
 }
 ```
 
 ### svgmaker_edit
 
-Edit existing SVGs or images with natural language.
+Edit existing SVGs or images with natural language. Supports the same style parameters as generate.
 
 ```json
 {
   "input_path": "/path/to/input.svg",
   "prompt": "Add a gradient background and make it more vibrant",
-  "output_path": "./enhanced.svg",
+  "output_path": "/path/to/enhanced.svg",
   "quality": "high",
+  "style": "cartoon",
   "background": "opaque"
 }
 ```
 
-### svgmaker_convert
+### svgmaker_ai_vectorize
 
-Convert images to SVG format.
+Convert raster images to SVG using AI-powered vectorization.
 
 ```json
 {
   "input_path": "/path/to/image.png",
-  "output_path": "./vector.svg"
+  "output_path": "/path/to/vector.svg"
 }
 ```
 

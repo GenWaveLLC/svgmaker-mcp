@@ -1,50 +1,41 @@
-# SVGMaker MCP - Convert Tool
+# SVGMaker MCP - AI Vectorize Tool
 
-Converts image files to SVG format using the SVGMaker API.
+Converts raster images to SVG format using AI-powered vectorization via the SVGMaker API. The AI analyzes the image and recreates it as clean, scalable vector graphics.
+
+**Tool name:** `svgmaker_ai_vectorize`
 
 ## Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `input_path` | string | Yes | Absolute file path to the image file to convert |
-| `output_path` | string | Yes | Local file path where the SVG will be saved (must end with .svg) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `input_path` | string | Yes | — | Absolute file path to the raster image file to convert |
+| `output_path` | string | Yes | — | Absolute file path where the SVG will be saved (must end with .svg) |
 
 ## Progress Notifications
 
 The tool sends progress updates every 5 seconds:
 
-1. Start (0%):
-   ```
-   "Starting image conversion..." (0%)
-   ```
-
-2. Processing (25%, 50%, 75%):
-   ```
-   "Converting image... 25%"
-   "Converting image... 50%"
-   "Converting image... 75%"
-   ```
-
-3. Completion (100%):
-   ```
-   "Image conversion complete!" (100%)
-   ```
+1. **Initializing** (0%) — `"Initializing image conversion..."`
+2. **Preparing** (25%) — `"Preparing image for conversion..."`
+3. **Processing** (25-99%) — `"Converting image to SVG..."` (updates periodically)
+4. **Saving** (99%) — `"Saving SVG file..."`
+5. **Complete** (100%) — `"Image conversion complete!"`
 
 ## Examples
 
 ### Basic Conversion
 ```json
 {
-  "input_path": "/absolute/path/to/image.png",
-  "output_path": "./converted.svg"
+  "input_path": "/Users/username/Documents/image.png",
+  "output_path": "/Users/username/Documents/converted.svg"
 }
 ```
 
 ### Converting from JPEG
 ```json
 {
-  "input_path": "/absolute/path/to/photo.jpg",
-  "output_path": "./vector_art.svg"
+  "input_path": "/Users/username/Pictures/photo.jpg",
+  "output_path": "/Users/username/Documents/vector_art.svg"
 }
 ```
 
@@ -78,12 +69,13 @@ On error:
 ## Error Handling
 
 Common errors:
-- Invalid input/output file paths
+- Invalid or non-absolute input/output file paths
 - Unsupported input file formats
 - Missing file permissions
 - API rate limits
 - Network issues
 - Invalid or corrupted input images
+- SVGMaker API did not return SVG content
 
 Each error returns a descriptive message to help diagnose the issue.
 
@@ -92,10 +84,14 @@ Each error returns a descriptive message to help diagnose the issue.
 Supported input formats:
 - PNG images (.png)
 - JPEG images (.jpg, .jpeg)
+- GIF images (.gif)
+- BMP images (.bmp)
+- TIFF images (.tiff)
+- WebP images (.webp)
 - Other common bitmap image formats supported by the SVGMaker API
 
 ## Notes
 
-- The convert tool automatically determines the best settings for SVG conversion based on the input image
+- The AI vectorize tool automatically determines the best settings for SVG conversion based on the input image
 - Output files are always in SVG format
-- For more control over the conversion process, consider using the edit tool with a "convert to SVG" style prompt
+- For more control over the conversion process, consider using the edit tool with style parameters
