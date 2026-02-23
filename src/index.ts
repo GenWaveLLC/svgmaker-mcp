@@ -57,7 +57,7 @@ async function main() {
         return await handleGenerateTool(server, request);
       case 'svgmaker_edit':
         return await handleEditTool(server, request);
-      case 'svgmaker_ai_vectorize':
+      case 'svgmaker_convert':
         return await handleConvertTool(server, request);
       default:
         throw new Error(`Unknown tool: ${name}`);

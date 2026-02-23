@@ -226,7 +226,7 @@ Convert the company logo to SVG:
 <mcp>
 {
   "server": "svgmaker",
-  "tool": "svgmaker_ai_vectorize",
+  "tool": "svgmaker_convert",
   "arguments": {
     "input_path": "./branding/logo.png",
     "output_path": "./branding/vector_logo.svg"
@@ -305,7 +305,7 @@ Edit existing SVGs or images with natural language. Supports the same style para
 }
 ```
 
-### svgmaker_ai_vectorize
+### svgmaker_convert
 
 Convert raster images to SVG using AI-powered vectorization.
 

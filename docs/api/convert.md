@@ -2,7 +2,7 @@
 
 Converts raster images to SVG format using AI-powered vectorization via the SVGMaker API. The AI analyzes the image and recreates it as clean, scalable vector graphics.
 
-**Tool name:** `svgmaker_ai_vectorize`
+**Tool name:** `svgmaker_convert`
 
 ## Parameters
 

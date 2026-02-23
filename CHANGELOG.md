@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2026-02-20
 
-### Breaking Changes
-- Renamed `svgmaker_convert` tool to `svgmaker_ai_vectorize`
-
 ### Added
 - Style parameters for generate and edit tools: `style`, `color_mode`, `image_complexity`, `composition`, `text_style`
 - Automated release pipeline with AI-generated release notes
