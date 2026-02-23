@@ -25,7 +25,7 @@ const ConvertToolInputSchema = z.object({
 export const convertToolDefinition = {
   name: 'svgmaker_convert',
   description:
-    'Converts an image file to SVG format using SVGMaker API and saves it to a specified local path. Supports various image formats including PNG, JPEG, and other common bitmap formats. The resulting SVG will be a vector representation of the original image, optimized for scalability and compatibility with vector graphics tools.',
+    'Converts a raster image (PNG, JPEG, WebP, etc.) to SVG format using AI-powered vectorization via SVGMaker API. The AI analyzes the image and recreates it as clean, scalable vector graphics. Saves the result to a specified local path.',
   inputSchema: zodToJsonSchema(ConvertToolInputSchema),
 };
 

@@ -40,6 +40,45 @@ const GenerateToolInputSchema = z.object({
     .describe(
       'Background style: auto (AI determines best, default, preferred if not specified explicitly by the user), transparent (no background, good for overlays), opaque (solid background color)'
     ),
+  style: z
+    .enum([
+      'flat',
+      'line_art',
+      'engraving',
+      'linocut',
+      'silhouette',
+      'isometric',
+      'cartoon',
+      'ghibli',
+    ])
+    .optional()
+    .describe(
+      'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
+    ),
+  color_mode: z
+    .enum(['full_color', 'monochrome', 'few_colors'])
+    .optional()
+    .describe(
+      'Color scheme: full_color (default, wide palette), monochrome (single color/shades), few_colors (limited palette). Only specify if user requests a specific color scheme.'
+    ),
+  image_complexity: z
+    .enum(['icon', 'illustration', 'scene'])
+    .optional()
+    .describe(
+      'Complexity level: icon (simple, minimal detail), illustration (moderate detail), scene (complex, full composition). Only specify if user requests a specific complexity.'
+    ),
+  composition: z
+    .enum(['centered_object', 'repeating_pattern', 'full_scene', 'objects_in_grid'])
+    .optional()
+    .describe(
+      'Layout composition: centered_object (single focus element), repeating_pattern (tiled/repeated), full_scene (complete scene), objects_in_grid (grid arrangement). Only specify if user requests a specific layout.'
+    ),
+  text_style: z
+    .enum(['only_title', 'embedded_text'])
+    .optional()
+    .describe(
+      'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
+    ),
 });
 
 export const generateToolDefinition = {
@@ -99,13 +138,26 @@ export async function handleGenerateTool(
     await progressManager.sendInitialProgress();
 
     try {
-      const sdkParams = {
+      // Build styleParams from individual style fields
+      const styleParams: Record<string, string> = {};
+      if (validatedArgs.style) styleParams.style = validatedArgs.style;
+      if (validatedArgs.color_mode) styleParams.color_mode = validatedArgs.color_mode;
+      if (validatedArgs.image_complexity)
+        styleParams.image_complexity = validatedArgs.image_complexity;
+      if (validatedArgs.composition) styleParams.composition = validatedArgs.composition;
+      if (validatedArgs.text_style) styleParams.text = validatedArgs.text_style;
+
+      const sdkParams: Record<string, any> = {
         prompt: validatedArgs.prompt,
         quality: validatedArgs.quality,
         aspectRatio: finalAspectRatio,
         background: validatedArgs.background,
         svgText: true,
       };
+
+      if (Object.keys(styleParams).length > 0) {
+        sdkParams.styleParams = styleParams;
+      }
 
       // Update progress: preparing request
       await progressManager.sendPreparingProgress();

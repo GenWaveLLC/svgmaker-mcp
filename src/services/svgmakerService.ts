@@ -43,10 +43,10 @@ export async function editSVG(
 }
 
 export async function convertImageToSVG(
-  params: SVGMakerTypes.ConvertParams
-): Promise<SVGMakerTypes.ConvertResponse> {
+  params: SVGMakerTypes.AiVectorizeParams
+): Promise<SVGMakerTypes.AiVectorizeResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
   const configuredParams = { ...params, svgText: true };
-  const result = await svgMaker.convert.configure(configuredParams).execute();
+  const result = await svgMaker.convert.aiVectorize.configure(configuredParams).execute();
   return result;
 }

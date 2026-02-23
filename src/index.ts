@@ -39,7 +39,7 @@ async function main() {
   initializeSvgmakerService(
     apiKey,
     process.env.SVGMMAKER_RATE_LIMIT_RPM,
-    process.env.SVGMAKER_BASE_URL || 'https://svgmaker.io/api'
+    process.env.SVGMAKER_BASE_URL || 'https://api.svgmaker.io'
   );
 
   // Set up unified tool handlers
