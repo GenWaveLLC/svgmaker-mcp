@@ -431,3 +431,8 @@ We welcome contributions! Please see our [Contributing Guide](https://github.com
 ## 📝 License
 
 MIT © [Genwave AI](https://genwave.xyz) - see the [LICENSE](https://github.com/GenWaveLLC/svgmaker-mcp/blob/main/LICENSE) file for details.
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/genwavellc-svgmaker-mcp).
+
