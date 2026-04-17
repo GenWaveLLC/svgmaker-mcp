@@ -15,6 +15,26 @@ import {
   accountUsageToolDefinition,
   handleAccountUsageTool,
 } from './tools/accountTool.js';
+import {
+  generationsListToolDefinition,
+  handleGenerationsListTool,
+  generationsGetToolDefinition,
+  handleGenerationsGetTool,
+  generationsDeleteToolDefinition,
+  handleGenerationsDeleteTool,
+  generationsShareToolDefinition,
+  handleGenerationsShareTool,
+  generationsDownloadToolDefinition,
+  handleGenerationsDownloadTool,
+} from './tools/generationsTool.js';
+import {
+  galleryListToolDefinition,
+  handleGalleryListTool,
+  galleryGetToolDefinition,
+  handleGalleryGetTool,
+  galleryDownloadToolDefinition,
+  handleGalleryDownloadTool,
+} from './tools/galleryTool.js';
 
 // Load environment variables
 dotenv.config();
@@ -57,6 +77,14 @@ async function main() {
         convertToolDefinition,
         accountInfoToolDefinition,
         accountUsageToolDefinition,
+        generationsListToolDefinition,
+        generationsGetToolDefinition,
+        generationsDeleteToolDefinition,
+        generationsShareToolDefinition,
+        generationsDownloadToolDefinition,
+        galleryListToolDefinition,
+        galleryGetToolDefinition,
+        galleryDownloadToolDefinition,
       ],
     };
   });
@@ -75,6 +103,22 @@ async function main() {
         return await handleAccountInfoTool(server, request);
       case 'svgmaker_account_usage':
         return await handleAccountUsageTool(server, request);
+      case 'svgmaker_generations_list':
+        return await handleGenerationsListTool(server, request);
+      case 'svgmaker_generations_get':
+        return await handleGenerationsGetTool(server, request);
+      case 'svgmaker_generations_delete':
+        return await handleGenerationsDeleteTool(server, request);
+      case 'svgmaker_generations_share':
+        return await handleGenerationsShareTool(server, request);
+      case 'svgmaker_generations_download':
+        return await handleGenerationsDownloadTool(server, request);
+      case 'svgmaker_gallery_list':
+        return await handleGalleryListTool(server, request);
+      case 'svgmaker_gallery_get':
+        return await handleGalleryGetTool(server, request);
+      case 'svgmaker_gallery_download':
+        return await handleGalleryDownloadTool(server, request);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

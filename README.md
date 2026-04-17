@@ -342,6 +342,97 @@ Or use a date range:
 }
 ```
 
+### svgmaker_generations_list
+
+List your SVG generations with optional filtering and pagination.
+
+```json
+{
+  "page": 1,
+  "limit": 20,
+  "type": "generate",
+  "query": "mountain"
+}
+```
+
+### svgmaker_generations_get
+
+Get detailed information about a specific generation.
+
+```json
+{
+  "id": "gen_abc123"
+}
+```
+
+### svgmaker_generations_delete
+
+Delete a generation and its associated files. Requires a paid account.
+
+```json
+{
+  "id": "gen_abc123"
+}
+```
+
+### svgmaker_generations_share
+
+Share a generation by making it publicly accessible.
+
+```json
+{
+  "id": "gen_abc123"
+}
+```
+
+### svgmaker_generations_download
+
+Download a generation in various formats and save to a local file. Requires a paid account.
+
+```json
+{
+  "id": "gen_abc123",
+  "output_path": "/path/to/output.svg",
+  "format": "svg"
+}
+```
+
+### svgmaker_gallery_list
+
+Browse the public SVGMaker gallery with optional filtering and pagination.
+
+```json
+{
+  "page": 1,
+  "limit": 20,
+  "type": "generate",
+  "query": "landscape",
+  "pro": "true"
+}
+```
+
+### svgmaker_gallery_get
+
+Get detailed information about a specific gallery item.
+
+```json
+{
+  "id": "gal_abc123"
+}
+```
+
+### svgmaker_gallery_download
+
+Download a gallery item in various formats and save to a local file. Costs 1 credit for SVG formats, 0 credits for WebP/PNG.
+
+```json
+{
+  "id": "gal_abc123",
+  "output_path": "/path/to/output.svg",
+  "format": "svg"
+}
+```
+
 ## ⚙️ Configuration
 
 ### Environment Variables

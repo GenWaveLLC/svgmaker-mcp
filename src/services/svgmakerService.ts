@@ -62,3 +62,55 @@ export async function getAccountUsage(
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
   return await svgMaker.account.getUsage(params);
 }
+
+export async function listGenerations(
+  params?: SVGMakerTypes.GenerationsListParams
+): Promise<SVGMakerTypes.GenerationsListResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.generations.list(params);
+}
+
+export async function getGeneration(id: string): Promise<SVGMakerTypes.GenerationResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.generations.get(id);
+}
+
+export async function deleteGeneration(
+  id: string
+): Promise<SVGMakerTypes.GenerationDeleteResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.generations.delete(id);
+}
+
+export async function shareGeneration(id: string): Promise<SVGMakerTypes.GenerationShareResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.generations.share(id);
+}
+
+export async function downloadGeneration(
+  id: string,
+  params?: SVGMakerTypes.GenerationDownloadParams
+): Promise<SVGMakerTypes.GenerationDownloadResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.generations.download(id, params);
+}
+
+export async function listGallery(
+  params?: SVGMakerTypes.GalleryListParams
+): Promise<SVGMakerTypes.GalleryListResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.gallery.list(params);
+}
+
+export async function getGalleryItem(id: string): Promise<SVGMakerTypes.GalleryItemResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.gallery.get(id);
+}
+
+export async function downloadGalleryItem(
+  id: string,
+  params?: SVGMakerTypes.GalleryDownloadParams
+): Promise<SVGMakerTypes.GalleryDownloadResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.gallery.download(id, params);
+}
