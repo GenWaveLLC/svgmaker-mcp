@@ -50,3 +50,15 @@ export async function convertImageToSVG(
   const result = await svgMaker.convert.aiVectorize.configure(configuredParams).execute();
   return result;
 }
+
+export async function getAccountInfo(): Promise<SVGMakerTypes.AccountResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.account.getInfo();
+}
+
+export async function getAccountUsage(
+  params?: SVGMakerTypes.AccountUsageParams
+): Promise<SVGMakerTypes.AccountUsageResponse> {
+  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  return await svgMaker.account.getUsage(params);
+}

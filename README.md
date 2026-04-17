@@ -316,6 +316,32 @@ Convert raster images to SVG using AI-powered vectorization.
 }
 ```
 
+### svgmaker_account_info
+
+Get account information including email, display name, account type, and available credits. No parameters required.
+
+```json
+{}
+```
+
+### svgmaker_account_usage
+
+Get API usage statistics with optional date filtering.
+
+```json
+{
+  "days": 30
+}
+```
+
+Or use a date range:
+```json
+{
+  "start": "2026-01-01",
+  "end": "2026-01-31"
+}
+```
+
 ## ⚙️ Configuration
 
 ### Environment Variables

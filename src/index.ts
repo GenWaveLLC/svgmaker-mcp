@@ -9,6 +9,12 @@ import { logSessionStart, logSessionEnd, logFatalError } from './utils/logUtils.
 import { generateToolDefinition, handleGenerateTool } from './tools/generateTool.js';
 import { editToolDefinition, handleEditTool } from './tools/editTool.js';
 import { convertToolDefinition, handleConvertTool } from './tools/convertTool.js';
+import {
+  accountInfoToolDefinition,
+  handleAccountInfoTool,
+  accountUsageToolDefinition,
+  handleAccountUsageTool,
+} from './tools/accountTool.js';
 
 // Load environment variables
 dotenv.config();
@@ -45,7 +51,13 @@ async function main() {
   // Set up unified tool handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: [generateToolDefinition, editToolDefinition, convertToolDefinition],
+      tools: [
+        generateToolDefinition,
+        editToolDefinition,
+        convertToolDefinition,
+        accountInfoToolDefinition,
+        accountUsageToolDefinition,
+      ],
     };
   });
 
@@ -59,6 +71,10 @@ async function main() {
         return await handleEditTool(server, request);
       case 'svgmaker_convert':
         return await handleConvertTool(server, request);
+      case 'svgmaker_account_info':
+        return await handleAccountInfoTool(server, request);
+      case 'svgmaker_account_usage':
+        return await handleAccountUsageTool(server, request);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
