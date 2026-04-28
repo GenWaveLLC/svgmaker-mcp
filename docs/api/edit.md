@@ -8,7 +8,9 @@ Edits existing SVG/image files based on text prompts using the SVGMaker API.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `input_path` | string | Yes | — | Absolute file path to the image/SVG to edit |
+| `input_path` | string | No* | — | Absolute file path to the image/SVG to edit. Provide one of `input_path`, `generation_id`, or `gallery_id` |
+| `generation_id` | string | No* | — | ID of an existing SVGMaker generation to edit. The image will be fetched automatically. Provide one of `input_path`, `generation_id`, or `gallery_id` |
+| `gallery_id` | string | No* | — | ID of a public SVGMaker gallery item to edit. The image will be fetched automatically. Provide one of `input_path`, `generation_id`, or `gallery_id` |
 | `prompt` | string | Yes | — | Detailed instructions for how to modify the image |
 | `output_path` | string | Yes | — | Absolute file path where the edited SVG will be saved (must end with .svg) |
 | `quality` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | Quality level. low (fast, basic edits), medium (balanced), high (best quality, forces square aspect ratio) |
@@ -82,6 +84,25 @@ The tool sends progress updates every 5 seconds:
 }
 ```
 
+### Edit by Generation ID
+```json
+{
+  "generation_id": "gen_abc123",
+  "prompt": "Make the background blue and add a white border",
+  "output_path": "/Users/username/Documents/edited.svg",
+  "quality": "high"
+}
+```
+
+### Edit by Gallery ID
+```json
+{
+  "gallery_id": "gal_abc123",
+  "prompt": "Change the color scheme to warm tones",
+  "output_path": "/Users/username/Documents/edited_gallery.svg"
+}
+```
+
 ## Response
 
 On success:
@@ -108,6 +129,10 @@ On error:
   ]
 }
 ```
+
+## Cloud Storage
+
+All edits are automatically saved to cloud storage (`storage: true`). This means every edited SVG gets a generation ID that can be used with preview, download, share, and delete tools.
 
 ## Error Handling
 

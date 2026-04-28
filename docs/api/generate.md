@@ -116,6 +116,10 @@ On error:
 }
 ```
 
+## Cloud Storage
+
+All generations are automatically saved to cloud storage (`storage: true`). This means every generated SVG gets a generation ID that can be used with preview, download, edit (via `generation_id`), share, and delete tools.
+
 ## Error Handling
 
 Common errors:

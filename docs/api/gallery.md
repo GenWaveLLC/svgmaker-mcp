@@ -150,6 +150,43 @@ On success:
 
 ---
 
+## svgmaker_gallery_preview
+
+Previews a gallery item by returning the image directly in the chat context as a PNG image. Use this to visually inspect a gallery item without saving it to disk.
+
+**Tool name:** `svgmaker_gallery_preview`
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `id` | string | Yes | — | Gallery item ID |
+
+### Examples
+
+```json
+{
+  "id": "gal_abc123"
+}
+```
+
+### Response
+
+On success, returns an image content block:
+```json
+{
+  "content": [
+    {
+      "type": "image",
+      "data": "<base64-encoded PNG>",
+      "mimeType": "image/png"
+    }
+  ]
+}
+```
+
+---
+
 ## Error Handling
 
 Common errors:

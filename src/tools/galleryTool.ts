@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
+import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -218,6 +218,61 @@ export async function handleGalleryDownloadTool(
         {
           type: 'text',
           text: `Error downloading gallery item: ${error.message}`,
+        } as TextContent,
+      ],
+    };
+  }
+}
+
+// ── Gallery Preview Tool ──
+
+const GalleryPreviewToolInputSchema = z.object({
+  id: z.string().min(1, 'Gallery item ID is required'),
+});
+
+export const galleryPreviewToolDefinition = {
+  name: 'svgmaker_gallery_preview',
+  description:
+    'Previews a gallery item by returning the image directly in the chat context as a PNG image. Use this to visually inspect a gallery item without saving it to disk.',
+  inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
+};
+
+export async function handleGalleryPreviewTool(
+  server: Server,
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+) {
+  logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
+  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
+
+  try {
+    const validatedArgs = GalleryPreviewToolInputSchema.parse(request.params.arguments);
+
+    const result = await svgmakerService.downloadGalleryItem(validatedArgs.id, { format: 'png' });
+
+    const response = await fetch(result.url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch preview: HTTP ${response.status}`);
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64Data = buffer.toString('base64');
+
+    return {
+      content: [
+        {
+          type: 'image',
+          data: base64Data,
+          mimeType: 'image/png',
+        } as ImageContent,
+      ],
+    };
+  } catch (error: any) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: 'text',
+          text: `Error previewing gallery item: ${error.message}`,
         } as TextContent,
       ],
     };

@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
+import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -300,6 +300,61 @@ export async function handleGenerationsDownloadTool(
         {
           type: 'text',
           text: `Error downloading generation: ${error.message}`,
+        } as TextContent,
+      ],
+    };
+  }
+}
+
+// ── Generations Preview Tool ──
+
+const GenerationsPreviewToolInputSchema = z.object({
+  id: z.string().min(1, 'Generation ID is required'),
+});
+
+export const generationsPreviewToolDefinition = {
+  name: 'svgmaker_generations_preview',
+  description:
+    'Previews a generation by returning the image directly in the chat context as a PNG image. Use this to visually inspect a generation without saving it to disk.',
+  inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
+};
+
+export async function handleGenerationsPreviewTool(
+  server: Server,
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+) {
+  logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
+  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
+
+  try {
+    const validatedArgs = GenerationsPreviewToolInputSchema.parse(request.params.arguments);
+
+    const result = await svgmakerService.downloadGeneration(validatedArgs.id, { format: 'png' });
+
+    const response = await fetch(result.url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch preview: HTTP ${response.status}`);
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64Data = buffer.toString('base64');
+
+    return {
+      content: [
+        {
+          type: 'image',
+          data: base64Data,
+          mimeType: 'image/png',
+        } as ImageContent,
+      ],
+    };
+  } catch (error: any) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: 'text',
+          text: `Error previewing generation: ${error.message}`,
         } as TextContent,
       ],
     };

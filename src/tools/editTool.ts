@@ -11,8 +11,23 @@ const EditToolInputSchema = z.object({
   input_path: z
     .string()
     .min(1, 'Input path cannot be empty.')
+    .optional()
     .describe(
-      'Absolute path to the existing image/SVG file to be edited. Supports various formats including PNG, JPEG, SVG, and other common image types. Example: "/Users/username/Documents/logo.svg"'
+      'Absolute path to the existing image/SVG file to be edited. Supports various formats including PNG, JPEG, SVG, and other common image types. Provide one of input_path, generation_id, or gallery_id.'
+    ),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID cannot be empty.')
+    .optional()
+    .describe(
+      'ID of an existing SVGMaker generation to edit. The image will be fetched automatically. Provide one of input_path, generation_id, or gallery_id.'
+    ),
+  gallery_id: z
+    .string()
+    .min(1, 'Gallery ID cannot be empty.')
+    .optional()
+    .describe(
+      'ID of a public SVGMaker gallery item to edit. The image will be fetched automatically. Provide one of input_path, generation_id, or gallery_id.'
     ),
   prompt: z
     .string()
@@ -108,22 +123,50 @@ export async function handleEditTool(
   try {
     const validatedArgs = EditToolInputSchema.parse(args);
 
-    // Note: In a real implementation, we'd need to get roots from the client
-    // For now, we'll use a simple path validation
-    const clientRoots: any[] = []; // server.getRoots() is not available in this SDK version
-    const validatedInputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.input_path,
-      clientRoots,
-      'read'
-    );
+    const providedSources = [validatedArgs.input_path, validatedArgs.generation_id, validatedArgs.gallery_id].filter(Boolean);
+    if (providedSources.length === 0) {
+      throw new Error('One of input_path, generation_id, or gallery_id must be provided.');
+    }
+    if (providedSources.length > 1) {
+      throw new Error('Provide only one of input_path, generation_id, or gallery_id.');
+    }
+
+    const clientRoots: any[] = [];
     const validatedOutputPath = await fileUtils.resolveAndValidatePath(
       validatedArgs.output_path,
       clientRoots,
       'write'
     );
 
-    // Read the input file
-    const inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
+    let inputImage: Buffer;
+    if (validatedArgs.generation_id) {
+      const downloadResult = await svgmakerService.downloadGeneration(
+        validatedArgs.generation_id,
+        { format: 'png' }
+      );
+      const response = await fetch(downloadResult.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch generation image: HTTP ${response.status}`);
+      }
+      inputImage = Buffer.from(await response.arrayBuffer());
+    } else if (validatedArgs.gallery_id) {
+      const downloadResult = await svgmakerService.downloadGalleryItem(
+        validatedArgs.gallery_id,
+        { format: 'png' }
+      );
+      const response = await fetch(downloadResult.url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch gallery image: HTTP ${response.status}`);
+      }
+      inputImage = Buffer.from(await response.arrayBuffer());
+    } else {
+      const validatedInputPath = await fileUtils.resolveAndValidatePath(
+        validatedArgs.input_path!,
+        clientRoots,
+        'read'
+      );
+      inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
+    }
 
     // Determine aspect ratio based on quality and explicit aspectRatio
     let finalAspectRatio = validatedArgs.aspectRatio;

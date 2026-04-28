@@ -229,6 +229,43 @@ On success:
 
 ---
 
+## svgmaker_generations_preview
+
+Previews a generation by returning the image directly in the chat context as a PNG image. Use this to visually inspect a generation without saving it to disk. The image appears inline in the conversation, allowing the LLM to describe it and enabling follow-up edits.
+
+**Tool name:** `svgmaker_generations_preview`
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `id` | string | Yes | — | Generation ID |
+
+### Examples
+
+```json
+{
+  "id": "gen_abc123"
+}
+```
+
+### Response
+
+On success, returns an image content block:
+```json
+{
+  "content": [
+    {
+      "type": "image",
+      "data": "<base64-encoded PNG>",
+      "mimeType": "image/png"
+    }
+  ]
+}
+```
+
+---
+
 ## Error Handling
 
 Common errors:

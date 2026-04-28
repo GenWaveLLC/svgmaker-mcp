@@ -26,6 +26,8 @@ import {
   handleGenerationsShareTool,
   generationsDownloadToolDefinition,
   handleGenerationsDownloadTool,
+  generationsPreviewToolDefinition,
+  handleGenerationsPreviewTool,
 } from './tools/generationsTool.js';
 import {
   galleryListToolDefinition,
@@ -34,6 +36,8 @@ import {
   handleGalleryGetTool,
   galleryDownloadToolDefinition,
   handleGalleryDownloadTool,
+  galleryPreviewToolDefinition,
+  handleGalleryPreviewTool,
 } from './tools/galleryTool.js';
 
 // Load environment variables
@@ -82,9 +86,11 @@ async function main() {
         generationsDeleteToolDefinition,
         generationsShareToolDefinition,
         generationsDownloadToolDefinition,
+        generationsPreviewToolDefinition,
         galleryListToolDefinition,
         galleryGetToolDefinition,
         galleryDownloadToolDefinition,
+        galleryPreviewToolDefinition,
       ],
     };
   });
@@ -113,12 +119,16 @@ async function main() {
         return await handleGenerationsShareTool(server, request);
       case 'svgmaker_generations_download':
         return await handleGenerationsDownloadTool(server, request);
+      case 'svgmaker_generations_preview':
+        return await handleGenerationsPreviewTool(server, request);
       case 'svgmaker_gallery_list':
         return await handleGalleryListTool(server, request);
       case 'svgmaker_gallery_get':
         return await handleGalleryGetTool(server, request);
       case 'svgmaker_gallery_download':
         return await handleGalleryDownloadTool(server, request);
+      case 'svgmaker_gallery_preview':
+        return await handleGalleryPreviewTool(server, request);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

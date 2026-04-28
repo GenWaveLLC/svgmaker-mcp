@@ -18,6 +18,7 @@ A powerful MCP server for generating, editing, and converting SVG images using S
 - **🎨 AI-Powered SVG Generation**: Create SVGs from text descriptions
 - **✏️ Smart SVG Editing**: Edit existing SVGs with natural language
 - **🔄 Image-to-SVG Conversion**: Convert any image to scalable SVG
+- **👁️ Inline Image Preview**: Preview generations and gallery items directly in chat
 - **🔒 Secure File Operations**: Built-in path validation and security
 - **⚡ Real-Time Progress**: Live updates during operations
 - **📝 Type Safety**: Full TypeScript support with type definitions
@@ -292,7 +293,7 @@ Generate SVG images from text prompts. Supports style parameters for fine-graine
 
 ### svgmaker_edit
 
-Edit existing SVGs or images with natural language. Supports the same style parameters as generate.
+Edit existing SVGs or images with natural language. Supports the same style parameters as generate. Accepts a local file path, generation ID, or gallery ID.
 
 ```json
 {
@@ -302,6 +303,22 @@ Edit existing SVGs or images with natural language. Supports the same style para
   "quality": "high",
   "style": "cartoon",
   "background": "opaque"
+}
+```
+
+Or edit directly from a generation ID or gallery ID:
+```json
+{
+  "generation_id": "gen_abc123",
+  "prompt": "Make the background blue",
+  "output_path": "/path/to/edited.svg"
+}
+```
+```json
+{
+  "gallery_id": "gal_abc123",
+  "prompt": "Change colors to warm tones",
+  "output_path": "/path/to/edited.svg"
 }
 ```
 
@@ -397,6 +414,16 @@ Download a generation in various formats and save to a local file. Requires a pa
 }
 ```
 
+### svgmaker_generations_preview
+
+Preview a generation by returning the image directly in the chat context as a PNG image. The LLM can see and describe the image, enabling follow-up edits.
+
+```json
+{
+  "id": "gen_abc123"
+}
+```
+
 ### svgmaker_gallery_list
 
 Browse the public SVGMaker gallery with optional filtering and pagination.
@@ -430,6 +457,16 @@ Download a gallery item in various formats and save to a local file. Costs 1 cre
   "id": "gal_abc123",
   "output_path": "/path/to/output.svg",
   "format": "svg"
+}
+```
+
+### svgmaker_gallery_preview
+
+Preview a gallery item by returning the image directly in the chat context as a PNG image.
+
+```json
+{
+  "id": "gal_abc123"
 }
 ```
 

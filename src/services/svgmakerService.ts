@@ -28,7 +28,7 @@ export async function generateSVG(
   params: SVGMakerTypes.GenerateParams
 ): Promise<SVGMakerTypes.GenerateResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  const configuredParams = { ...params, svgText: true };
+  const configuredParams = { ...params, svgText: true, storage: true };
   const result = await svgMaker.generate.configure(configuredParams).execute();
   return result;
 }
@@ -37,7 +37,7 @@ export async function editSVG(
   params: SVGMakerTypes.EditParams
 ): Promise<SVGMakerTypes.EditResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  const configuredParams = { ...params, svgText: true };
+  const configuredParams = { ...params, svgText: true, storage: true };
   const result = await svgMaker.edit.configure(configuredParams).execute();
   return result;
 }
@@ -46,7 +46,7 @@ export async function convertImageToSVG(
   params: SVGMakerTypes.AiVectorizeParams
 ): Promise<SVGMakerTypes.AiVectorizeResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  const configuredParams = { ...params, svgText: true };
+  const configuredParams = { ...params, svgText: true, storage: true };
   const result = await svgMaker.convert.aiVectorize.configure(configuredParams).execute();
   return result;
 }
