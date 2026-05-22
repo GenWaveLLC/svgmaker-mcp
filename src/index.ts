@@ -29,6 +29,7 @@ import {
   generationsPreviewToolDefinition,
   handleGenerationsPreviewTool,
 } from './tools/generationsTool.js';
+import { previewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
 import {
   galleryListToolDefinition,
   handleGalleryListTool,
@@ -87,6 +88,7 @@ async function main() {
         generationsShareToolDefinition,
         generationsDownloadToolDefinition,
         generationsPreviewToolDefinition,
+        previewToolDefinition,
         galleryListToolDefinition,
         galleryGetToolDefinition,
         galleryDownloadToolDefinition,
@@ -121,6 +123,8 @@ async function main() {
         return await handleGenerationsDownloadTool(server, request);
       case 'svgmaker_generations_preview':
         return await handleGenerationsPreviewTool(server, request);
+      case 'svgmaker_preview':
+        return await handlePreviewTool(server, request);
       case 'svgmaker_gallery_list':
         return await handleGalleryListTool(server, request);
       case 'svgmaker_gallery_get':

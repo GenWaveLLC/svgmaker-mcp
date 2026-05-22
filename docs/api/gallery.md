@@ -73,13 +73,13 @@ Gets detailed information about a specific gallery item by ID.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Gallery item ID |
+| `generation_id` | string | Yes | — | Gallery item ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gal_abc123"
+  "generation_id": "gal_abc123"
 }
 ```
 
@@ -109,7 +109,7 @@ Downloads a gallery item in the specified format and saves it to a local file. C
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Gallery item ID |
+| `generation_id` | string | Yes | — | Gallery item ID |
 | `output_path` | string | Yes | — | Absolute file path where the downloaded file will be saved |
 | `format` | `"svg"` \| `"webp"` \| `"png"` \| `"svg-optimized"` \| `"svgz"` | No | `"webp"` | Download format |
 | `optimize` | boolean | No | — | Optimize before compressing (only for svgz format) |
@@ -119,7 +119,7 @@ Downloads a gallery item in the specified format and saves it to a local file. C
 #### Download as SVG
 ```json
 {
-  "id": "gal_abc123",
+  "generation_id": "gal_abc123",
   "output_path": "/Users/username/Documents/gallery-item.svg",
   "format": "svg"
 }
@@ -128,7 +128,7 @@ Downloads a gallery item in the specified format and saves it to a local file. C
 #### Download as PNG
 ```json
 {
-  "id": "gal_abc123",
+  "generation_id": "gal_abc123",
   "output_path": "/Users/username/Documents/gallery-item.png",
   "format": "png"
 }
@@ -160,13 +160,13 @@ Previews a gallery item by returning the image directly in the chat context as a
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Gallery item ID |
+| `generation_id` | string | Yes | — | Gallery item ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gal_abc123"
+  "generation_id": "gal_abc123"
 }
 ```
 

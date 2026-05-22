@@ -293,7 +293,7 @@ Generate SVG images from text prompts. Supports style parameters for fine-graine
 
 ### svgmaker_edit
 
-Edit existing SVGs or images with natural language. Supports the same style parameters as generate. Accepts a local file path, generation ID, or gallery ID.
+Edit existing SVGs or images with natural language. Supports the same style parameters as generate. Accepts a local file path or generation ID (works for both your own generations and public gallery items).
 
 ```json
 {
@@ -306,18 +306,11 @@ Edit existing SVGs or images with natural language. Supports the same style para
 }
 ```
 
-Or edit directly from a generation ID or gallery ID:
+Or edit directly from a generation ID (works for both generations and gallery items):
 ```json
 {
   "generation_id": "gen_abc123",
   "prompt": "Make the background blue",
-  "output_path": "/path/to/edited.svg"
-}
-```
-```json
-{
-  "gallery_id": "gal_abc123",
-  "prompt": "Change colors to warm tones",
   "output_path": "/path/to/edited.svg"
 }
 ```
@@ -378,7 +371,7 @@ Get detailed information about a specific generation.
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -388,7 +381,7 @@ Delete a generation and its associated files. Requires a paid account.
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -398,7 +391,7 @@ Share a generation by making it publicly accessible.
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -408,7 +401,7 @@ Download a generation in various formats and save to a local file. Requires a pa
 
 ```json
 {
-  "id": "gen_abc123",
+  "generation_id": "gen_abc123",
   "output_path": "/path/to/output.svg",
   "format": "svg"
 }
@@ -420,7 +413,7 @@ Preview a generation by returning the image directly in the chat context as a PN
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -444,7 +437,7 @@ Get detailed information about a specific gallery item.
 
 ```json
 {
-  "id": "gal_abc123"
+  "generation_id": "gal_abc123"
 }
 ```
 
@@ -454,7 +447,7 @@ Download a gallery item in various formats and save to a local file. Costs 1 cre
 
 ```json
 {
-  "id": "gal_abc123",
+  "generation_id": "gal_abc123",
   "output_path": "/path/to/output.svg",
   "format": "svg"
 }
@@ -466,7 +459,17 @@ Preview a gallery item by returning the image directly in the chat context as a 
 
 ```json
 {
-  "id": "gal_abc123"
+  "generation_id": "gal_abc123"
+}
+```
+
+### svgmaker_preview
+
+Preview a local image file by returning it directly in the chat context. Supports PNG, SVG, WebP, and SVGZ formats.
+
+```json
+{
+  "file_path": "/path/to/image.svg"
 }
 ```
 

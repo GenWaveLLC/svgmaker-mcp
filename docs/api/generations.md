@@ -70,13 +70,13 @@ Gets detailed information about a specific generation by ID.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Generation ID |
+| `generation_id` | string | Yes | — | Generation ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -106,13 +106,13 @@ Deletes a generation and its associated files. This action is permanent and cann
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Generation ID |
+| `generation_id` | string | Yes | — | Generation ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -142,13 +142,13 @@ Shares a generation by making it publicly accessible. Returns the public share U
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Generation ID |
+| `generation_id` | string | Yes | — | Generation ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 
@@ -178,7 +178,7 @@ Downloads a generation in the specified format and saves it to a local file. Req
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Generation ID |
+| `generation_id` | string | Yes | — | Generation ID |
 | `output_path` | string | Yes | — | Absolute file path where the downloaded file will be saved |
 | `format` | `"svg"` \| `"webp"` \| `"png"` \| `"svg-optimized"` \| `"svgz"` | No | `"webp"` | Download format |
 | `optimize` | boolean | No | — | Optimize before compressing (only for svgz format) |
@@ -188,7 +188,7 @@ Downloads a generation in the specified format and saves it to a local file. Req
 #### Download as SVG
 ```json
 {
-  "id": "gen_abc123",
+  "generation_id": "gen_abc123",
   "output_path": "/Users/username/Documents/my-generation.svg",
   "format": "svg"
 }
@@ -197,7 +197,7 @@ Downloads a generation in the specified format and saves it to a local file. Req
 #### Download as PNG
 ```json
 {
-  "id": "gen_abc123",
+  "generation_id": "gen_abc123",
   "output_path": "/Users/username/Documents/my-generation.png",
   "format": "png"
 }
@@ -206,7 +206,7 @@ Downloads a generation in the specified format and saves it to a local file. Req
 #### Download as Optimized SVGZ
 ```json
 {
-  "id": "gen_abc123",
+  "generation_id": "gen_abc123",
   "output_path": "/Users/username/Documents/my-generation.svgz",
   "format": "svgz",
   "optimize": true
@@ -239,13 +239,13 @@ Previews a generation by returning the image directly in the chat context as a P
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `id` | string | Yes | — | Generation ID |
+| `generation_id` | string | Yes | — | Generation ID |
 
 ### Examples
 
 ```json
 {
-  "id": "gen_abc123"
+  "generation_id": "gen_abc123"
 }
 ```
 

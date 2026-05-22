@@ -8,9 +8,8 @@ Edits existing SVG/image files based on text prompts using the SVGMaker API.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `input_path` | string | No* | — | Absolute file path to the image/SVG to edit. Provide one of `input_path`, `generation_id`, or `gallery_id` |
-| `generation_id` | string | No* | — | ID of an existing SVGMaker generation to edit. The image will be fetched automatically. Provide one of `input_path`, `generation_id`, or `gallery_id` |
-| `gallery_id` | string | No* | — | ID of a public SVGMaker gallery item to edit. The image will be fetched automatically. Provide one of `input_path`, `generation_id`, or `gallery_id` |
+| `input_path` | string | No* | — | Absolute file path to the image/SVG to edit. Provide one of `input_path` or `generation_id` |
+| `generation_id` | string | No* | — | ID of an SVGMaker generation or public gallery item to edit. The image will be fetched automatically — tries generations API first, then gallery API. Provide one of `input_path` or `generation_id` |
 | `prompt` | string | Yes | — | Detailed instructions for how to modify the image |
 | `output_path` | string | Yes | — | Absolute file path where the edited SVG will be saved (must end with .svg) |
 | `quality` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | Quality level. low (fast, basic edits), medium (balanced), high (best quality, forces square aspect ratio) |
@@ -84,22 +83,13 @@ The tool sends progress updates every 5 seconds:
 }
 ```
 
-### Edit by Generation ID
+### Edit by Generation ID (works for both generations and gallery items)
 ```json
 {
   "generation_id": "gen_abc123",
   "prompt": "Make the background blue and add a white border",
   "output_path": "/Users/username/Documents/edited.svg",
   "quality": "high"
-}
-```
-
-### Edit by Gallery ID
-```json
-{
-  "gallery_id": "gal_abc123",
-  "prompt": "Change the color scheme to warm tones",
-  "output_path": "/Users/username/Documents/edited_gallery.svg"
 }
 ```
 

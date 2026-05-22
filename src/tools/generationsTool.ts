@@ -6,6 +6,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
+import { fetchRemotePreview } from '../utils/previewUtils.js';
 
 // ── Generations List Tool ──
 
@@ -83,7 +84,7 @@ export async function handleGenerationsListTool(
 // ── Generations Get Tool ──
 
 const GenerationsGetToolInputSchema = z.object({
-  id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const generationsGetToolDefinition = {
@@ -102,7 +103,7 @@ export async function handleGenerationsGetTool(
 
   try {
     const validatedArgs = GenerationsGetToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.getGeneration(validatedArgs.id);
+    const result = await svgmakerService.getGeneration(validatedArgs.generation_id);
 
     const hashTags =
       result.hashTags && result.hashTags.length > 0 ? result.hashTags.join(', ') : 'None';
@@ -139,7 +140,7 @@ export async function handleGenerationsGetTool(
 // ── Generations Delete Tool ──
 
 const GenerationsDeleteToolInputSchema = z.object({
-  id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const generationsDeleteToolDefinition = {
@@ -158,7 +159,7 @@ export async function handleGenerationsDeleteTool(
 
   try {
     const validatedArgs = GenerationsDeleteToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.deleteGeneration(validatedArgs.id);
+    const result = await svgmakerService.deleteGeneration(validatedArgs.generation_id);
 
     return {
       content: [{ type: 'text', text: result.message } as TextContent],
@@ -179,7 +180,7 @@ export async function handleGenerationsDeleteTool(
 // ── Generations Share Tool ──
 
 const GenerationsShareToolInputSchema = z.object({
-  id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const generationsShareToolDefinition = {
@@ -198,7 +199,7 @@ export async function handleGenerationsShareTool(
 
   try {
     const validatedArgs = GenerationsShareToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.shareGeneration(validatedArgs.id);
+    const result = await svgmakerService.shareGeneration(validatedArgs.generation_id);
 
     const text = [
       'Generation shared successfully.',
@@ -225,7 +226,7 @@ export async function handleGenerationsShareTool(
 // ── Generations Download Tool ──
 
 const GenerationsDownloadToolInputSchema = z.object({
-  id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
@@ -266,7 +267,7 @@ export async function handleGenerationsDownloadTool(
     if (validatedArgs.optimize !== undefined) params.optimize = validatedArgs.optimize;
 
     const result = await svgmakerService.downloadGeneration(
-      validatedArgs.id,
+      validatedArgs.generation_id,
       Object.keys(params).length > 0 ? params : undefined
     );
 
@@ -309,7 +310,7 @@ export async function handleGenerationsDownloadTool(
 // ── Generations Preview Tool ──
 
 const GenerationsPreviewToolInputSchema = z.object({
-  id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const generationsPreviewToolDefinition = {
@@ -329,15 +330,10 @@ export async function handleGenerationsPreviewTool(
   try {
     const validatedArgs = GenerationsPreviewToolInputSchema.parse(request.params.arguments);
 
-    const result = await svgmakerService.downloadGeneration(validatedArgs.id, { format: 'png' });
-
-    const response = await fetch(result.url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch preview: HTTP ${response.status}`);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const base64Data = buffer.toString('base64');
+    const result = await svgmakerService.downloadGeneration(validatedArgs.generation_id, {
+      format: 'png',
+    });
+    const base64Data = await fetchRemotePreview(result.url);
 
     return {
       content: [

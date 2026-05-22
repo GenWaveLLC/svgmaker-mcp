@@ -6,6 +6,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
+import { fetchRemotePreview } from '../utils/previewUtils.js';
 
 // ── Gallery List Tool ──
 
@@ -87,7 +88,7 @@ export async function handleGalleryListTool(
 // ── Gallery Get Tool ──
 
 const GalleryGetToolInputSchema = z.object({
-  id: z.string().min(1, 'Gallery item ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const galleryGetToolDefinition = {
@@ -106,7 +107,7 @@ export async function handleGalleryGetTool(
 
   try {
     const validatedArgs = GalleryGetToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.getGalleryItem(validatedArgs.id);
+    const result = await svgmakerService.getGalleryItem(validatedArgs.generation_id);
 
     const hashTags =
       result.hashTags && result.hashTags.length > 0 ? result.hashTags.join(', ') : 'None';
@@ -143,7 +144,7 @@ export async function handleGalleryGetTool(
 // ── Gallery Download Tool ──
 
 const GalleryDownloadToolInputSchema = z.object({
-  id: z.string().min(1, 'Gallery item ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
@@ -184,7 +185,7 @@ export async function handleGalleryDownloadTool(
     if (validatedArgs.optimize !== undefined) params.optimize = validatedArgs.optimize;
 
     const result = await svgmakerService.downloadGalleryItem(
-      validatedArgs.id,
+      validatedArgs.generation_id,
       Object.keys(params).length > 0 ? params : undefined
     );
 
@@ -227,7 +228,7 @@ export async function handleGalleryDownloadTool(
 // ── Gallery Preview Tool ──
 
 const GalleryPreviewToolInputSchema = z.object({
-  id: z.string().min(1, 'Gallery item ID is required'),
+  generation_id: z.string().min(1, 'Generation ID is required'),
 });
 
 export const galleryPreviewToolDefinition = {
@@ -247,15 +248,10 @@ export async function handleGalleryPreviewTool(
   try {
     const validatedArgs = GalleryPreviewToolInputSchema.parse(request.params.arguments);
 
-    const result = await svgmakerService.downloadGalleryItem(validatedArgs.id, { format: 'png' });
-
-    const response = await fetch(result.url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch preview: HTTP ${response.status}`);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const base64Data = buffer.toString('base64');
+    const result = await svgmakerService.downloadGalleryItem(validatedArgs.generation_id, {
+      format: 'png',
+    });
+    const base64Data = await fetchRemotePreview(result.url);
 
     return {
       content: [
