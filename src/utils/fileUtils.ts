@@ -60,6 +60,14 @@ export async function writeFile(filePath: string, content: string): Promise<void
   }
 }
 
+export async function writeFileBuffer(filePath: string, content: Buffer): Promise<void> {
+  try {
+    await fs.writeFile(filePath, content);
+  } catch {
+    throw new Error(`Failed to write file: ${filePath}`);
+  }
+}
+
 export async function readFileToBuffer(filePath: string): Promise<Buffer> {
   try {
     return await fs.readFile(filePath);

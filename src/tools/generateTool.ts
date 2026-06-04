@@ -79,6 +79,20 @@ const GenerateToolInputSchema = z.object({
     .describe(
       'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
     ),
+  raster: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, skips SVG vectorization and returns a raster PNG image instead of SVG. The output_path should use .png extension. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
+    ),
+  storage: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, stores the generated image permanently in cloud storage. Cannot be used with raster mode. Defaults to true when raster is not set.'
+    ),
+}).refine(data => !(data.raster && data.storage), {
+  message: "Cannot use 'storage: true' with 'raster: true'. Raster mode returns temporary URLs only.",
 });
 
 export const generateToolDefinition = {
@@ -152,8 +166,16 @@ export async function handleGenerateTool(
         quality: validatedArgs.quality,
         aspectRatio: finalAspectRatio,
         background: validatedArgs.background,
-        svgText: true,
+        svgText: !validatedArgs.raster,
       };
+
+      if (validatedArgs.raster) {
+        sdkParams.raster = true;
+      }
+
+      if (validatedArgs.storage !== undefined) {
+        sdkParams.storage = validatedArgs.storage;
+      }
 
       if (Object.keys(styleParams).length > 0) {
         sdkParams.styleParams = styleParams;
@@ -177,7 +199,25 @@ export async function handleGenerateTool(
       // Update progress: processing complete
       await progressManager.sendSavingProgress();
 
-      if (result.svgText) {
+      if (validatedArgs.raster && result.imageUrl) {
+        const response = await fetch(result.imageUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to download raster image: HTTP ${response.status}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        await fileUtils.writeFileBuffer(validatedOutputPath, buffer);
+
+        await progressManager.sendFinalProgress();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Raster PNG generated successfully: ${validatedOutputPath}`,
+            } as TextContent,
+          ],
+        };
+      } else if (result.svgText) {
         await fileUtils.writeFile(validatedOutputPath, result.svgText);
 
         // Send final progress

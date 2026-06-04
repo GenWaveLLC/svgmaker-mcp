@@ -12,7 +12,7 @@ export function initializeSvgmakerService(
     logging: false, // Disable logging to prevent stdout pollution
     rateLimit: rateLimit, // RPM
     debug: false, // Enable debug mode
-    timeout: 60000, // 60s timeout
+    timeout: 180000, // 180s timeout
     maxRetries: 0, // Do not retry requests
   };
 
@@ -28,7 +28,11 @@ export async function generateSVG(
   params: SVGMakerTypes.GenerateParams
 ): Promise<SVGMakerTypes.GenerateResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  const configuredParams = { ...params, svgText: true, storage: true };
+  const configuredParams = {
+    ...params,
+    svgText: !params.raster,
+    storage: params.raster ? false : (params.storage ?? true),
+  };
   const result = await svgMaker.generate.configure(configuredParams).execute();
   return result;
 }
@@ -37,7 +41,11 @@ export async function editSVG(
   params: SVGMakerTypes.EditParams
 ): Promise<SVGMakerTypes.EditResponse> {
   if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  const configuredParams = { ...params, svgText: true, storage: true };
+  const configuredParams = {
+    ...params,
+    svgText: !params.raster,
+    storage: params.raster ? false : (params.storage ?? true),
+  };
   const result = await svgMaker.edit.configure(configuredParams).execute();
   return result;
 }
