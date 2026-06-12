@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Republish the current package.json version if a previous release failed (not a version bump)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,20 +31,27 @@ jobs:
 
     - name: Detect version change
       id: detect
+      env:
+        FORCE_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.force_release || 'false' }}
       run: |
         NEW_VERSION=$(node -p "require('./package.json').version")
         # Get previous commit's package.json version
         OLD_VERSION=$(git show HEAD~1:package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version")
-        if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-          # Check npm
-          if npm view "@genwave/svgmaker-mcp@$NEW_VERSION" version >/dev/null 2>&1; then
-            echo "Version $NEW_VERSION already on npm, skipping"
-            echo "should-release=false" >> $GITHUB_OUTPUT
-          else
-            echo "Version changed: $OLD_VERSION -> $NEW_VERSION"
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          fi
+        # 1) Never re-publish a version that is already on npm
+        if npm view "@genwave/svgmaker-mcp@$NEW_VERSION" version >/dev/null 2>&1; then
+          echo "Version $NEW_VERSION already on npm, skipping"
+          echo "should-release=false" >> $GITHUB_OUTPUT
+        # 2) Normal path: version was bumped in this push
+        elif [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+          echo "Version changed: $OLD_VERSION -> $NEW_VERSION"
+          echo "should-release=true" >> $GITHUB_OUTPUT
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        # 3) Permissioned retry: manual dispatch with force_release to republish
+        #    an unchanged version that never made it to npm (e.g. a failed release)
+        elif [ "$FORCE_RELEASE" = "true" ]; then
+          echo "Forced retry: $NEW_VERSION is unchanged but not on npm, releasing"
+          echo "should-release=true" >> $GITHUB_OUTPUT
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
         else
           echo "No version change, skipping"
           echo "should-release=false" >> $GITHUB_OUTPUT
