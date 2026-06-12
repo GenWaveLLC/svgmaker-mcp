@@ -1,6 +1,6 @@
 {
   "name": "@genwave/svgmaker-mcp",
-  "version": "0.4.0",
+  "version": "2.0.0",
   "description": "MCP server for generating, editing, and converting SVG images using SVGMaker API",
   "type": "module",
   "main": "build/index.js",
@@ -52,16 +52,25 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@genwave/svgmaker-sdk": "^1.0.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@genwave/svgmaker-sdk": "1.1.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^16.5.0",
+    "sharp": "^0.34.5",
     "zod": "3.25.67"
   },
   "overrides": {
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "@hono/node-server": "1.19.14",
+    "hono": "4.12.25",
+    "fast-uri": "3.1.2",
+    "express-rate-limit": "8.5.2",
+    "ip-address": "10.2.0",
+    "path-to-regexp": "8.4.2",
+    "qs": "6.15.2"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
+    "@types/sharp": "^0.31.1",
     "@typescript-eslint/eslint-plugin": "^8.33.1",
     "@typescript-eslint/parser": "^8.33.1",
     "eslint": "^8.57.1",

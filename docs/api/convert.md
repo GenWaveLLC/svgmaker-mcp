@@ -90,6 +90,10 @@ Supported input formats:
 - WebP images (.webp)
 - Other common bitmap image formats supported by the SVGMaker API
 
+## Cloud Storage
+
+All conversions are automatically saved to cloud storage (`storage: true`). This means every converted SVG gets a generation ID that can be used with preview, download, edit (via `generation_id`), share, and delete tools.
+
 ## Notes
 
 - The AI vectorize tool automatically determines the best settings for SVG conversion based on the input image
