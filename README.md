@@ -17,6 +17,7 @@ A powerful MCP server for generating, editing, and converting SVG images using S
 
 - **🎨 AI-Powered SVG Generation**: Create SVGs from text descriptions
 - **✏️ Smart SVG Editing**: Edit existing SVGs with natural language
+- **🖼️ Raster Mode**: Skip vectorization and get a quick PNG instead of SVG
 - **🔄 Image-to-SVG Conversion**: Convert any image to scalable SVG
 - **👁️ Inline Image Preview**: Preview generations and gallery items directly in chat
 - **🔒 Secure File Operations**: Built-in path validation and security
@@ -291,6 +292,37 @@ Generate SVG images from text prompts. Supports style parameters for fine-graine
 }
 ```
 
+**Raster mode** — set `raster: true` to skip vectorization and get a PNG instead of an SVG. Use a `.png` extension for `output_path`. Cannot be combined with `storage` (raster results are temporary).
+
+```json
+{
+  "prompt": "A minimalist mountain landscape with sun",
+  "output_path": "/path/to/landscape.png",
+  "quality": "medium",
+  "raster": true
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `raster` | boolean | When true, returns a raster PNG instead of SVG (skips vectorization). Use a `.png` output path. Cannot be used with `storage`. |
+| `storage` | boolean | When true, stores the generated image permanently in cloud storage. Cannot be used with `raster`. Defaults to true when `raster` is not set. |
+
+#### Style parameters (generate & edit)
+
+All parameters below are optional and shared by `svgmaker_generate` and `svgmaker_edit`. Only specify the ones the user explicitly requests.
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `quality` | `low`, `medium`, `high` | `medium` | Detail level vs. speed. `high` forces a square aspect ratio. |
+| `aspectRatio` | `square`, `portrait`, `landscape` | auto (by quality) | Output shape. Ignored when `quality` is `high` (forced square). |
+| `background` | `auto`, `transparent`, `opaque` | `auto` | Background style. `transparent` is good for overlays. |
+| `style` | `flat`, `line_art`, `engraving`, `linocut`, `silhouette`, `isometric`, `cartoon`, `ghibli` | — | Art style. |
+| `color_mode` | `full_color`, `monochrome`, `few_colors` | `full_color` | Color scheme. |
+| `image_complexity` | `icon`, `illustration`, `scene` | — | Level of detail in the composition. |
+| `composition` | `centered_object`, `repeating_pattern`, `full_scene`, `objects_in_grid` | — | Layout arrangement. |
+| `text_style` | `only_title`, `embedded_text` | — | How text is handled in the design. |
+
 ### svgmaker_edit
 
 Edit existing SVGs or images with natural language. Supports the same style parameters as generate. Accepts a local file path or generation ID (works for both your own generations and public gallery items).
@@ -314,6 +346,22 @@ Or edit directly from a generation ID (works for both generations and gallery it
   "output_path": "/path/to/edited.svg"
 }
 ```
+
+**Raster mode** — like generate, set `raster: true` to get a PNG instead of an SVG. Use a `.png` extension for `output_path`. Cannot be combined with `storage`.
+
+```json
+{
+  "input_path": "/path/to/input.svg",
+  "prompt": "Make it more vibrant",
+  "output_path": "/path/to/edited.png",
+  "raster": true
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `raster` | boolean | When true, returns a raster PNG instead of SVG (skips vectorization). Use a `.png` output path. Cannot be used with `storage`. |
+| `storage` | boolean | When true, stores the edited image permanently in cloud storage. Cannot be used with `raster`. Defaults to true when `raster` is not set. |
 
 ### svgmaker_convert
 
@@ -542,22 +590,22 @@ This project uses GitHub Actions for continuous integration and deployment:
    - Performs linting, type checking, and building
    - Ensures code quality and consistency
 
-2. **Releasing a New Version**
-   - To release a patch version (bug fixes):
+2. **Bumping the Version**
+   - For a patch version (bug fixes):
      ```bash
-     npm run release:patch
+     npm run version:patch
      ```
-   - To release a minor version (new features):
+   - For a minor version (new features):
      ```bash
-     npm run release:minor
+     npm run version:minor
      ```
-   - To release a major version (breaking changes):
+   - For a major version (breaking changes):
      ```bash
-     npm run release:major
+     npm run version:major
      ```
 
 3. **Publishing**
-   - Automatically publishes to npm when a new version tag is pushed
+   - Automatically publishes to npm when the version bump is merged to `main`
 
 ## 🔐 Security
 
