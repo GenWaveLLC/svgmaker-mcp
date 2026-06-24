@@ -2,6 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import * as svgmakerService from '../services/svgmakerService.js';
 import { logToFile } from '../utils/logUtils.js';
 
@@ -18,13 +19,14 @@ export const accountInfoToolDefinition = {
 
 export async function handleAccountInfoTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG ACCOUNT INFO TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
-    const result = await svgmakerService.getAccountInfo();
+    const result = await svgmakerService.getAccountInfo(client);
 
     const text = [
       'Account Information:',
@@ -78,7 +80,8 @@ export const accountUsageToolDefinition = {
 
 export async function handleAccountUsageTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG ACCOUNT USAGE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -106,7 +109,8 @@ export async function handleAccountUsageTool(
     if (validatedArgs.end !== undefined) params.end = validatedArgs.end;
 
     const result = await svgmakerService.getAccountUsage(
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     const lines: string[] = [];

@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
@@ -33,7 +34,8 @@ export const galleryListToolDefinition = {
 
 export async function handleGalleryListTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GALLERY LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -53,7 +55,8 @@ export async function handleGalleryListTool(
     if (validatedArgs.gold !== undefined) params.gold = validatedArgs.gold;
 
     const result = await svgmakerService.listGallery(
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     const lines: string[] = [];
@@ -100,14 +103,15 @@ export const galleryGetToolDefinition = {
 
 export async function handleGalleryGetTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GALLERY GET TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryGetToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.getGalleryItem(validatedArgs.generation_id);
+    const result = await svgmakerService.getGalleryItem(validatedArgs.generation_id, client);
 
     const hashTags =
       result.hashTags && result.hashTags.length > 0 ? result.hashTags.join(', ') : 'None';
@@ -165,7 +169,8 @@ export const galleryDownloadToolDefinition = {
 
 export async function handleGalleryDownloadTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GALLERY DOWNLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -186,7 +191,8 @@ export async function handleGalleryDownloadTool(
 
     const result = await svgmakerService.downloadGalleryItem(
       validatedArgs.generation_id,
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     // Fetch the file from the download URL
@@ -240,7 +246,8 @@ export const galleryPreviewToolDefinition = {
 
 export async function handleGalleryPreviewTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -248,9 +255,13 @@ export async function handleGalleryPreviewTool(
   try {
     const validatedArgs = GalleryPreviewToolInputSchema.parse(request.params.arguments);
 
-    const result = await svgmakerService.downloadGalleryItem(validatedArgs.generation_id, {
-      format: 'png',
-    });
+    const result = await svgmakerService.downloadGalleryItem(
+      validatedArgs.generation_id,
+      {
+        format: 'png',
+      },
+      client
+    );
     const base64Data = await fetchRemotePreview(result.url);
 
     return {

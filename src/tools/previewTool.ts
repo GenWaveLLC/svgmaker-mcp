@@ -2,6 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ImageContent, TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { logToFile } from '../utils/logUtils.js';
 import { readLocalPreview } from '../utils/previewUtils.js';
 
@@ -23,7 +24,8 @@ export const previewToolDefinition = {
 
 export async function handlePreviewTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  _client?: SVGMakerClient
 ) {
   logToFile('========== SVG PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);

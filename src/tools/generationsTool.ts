@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
@@ -31,7 +32,8 @@ export const generationsListToolDefinition = {
 
 export async function handleGenerationsListTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -49,7 +51,8 @@ export async function handleGenerationsListTool(
     if (validatedArgs.query !== undefined) params.query = validatedArgs.query;
 
     const result = await svgmakerService.listGenerations(
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     const lines: string[] = [];
@@ -96,14 +99,15 @@ export const generationsGetToolDefinition = {
 
 export async function handleGenerationsGetTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS GET TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsGetToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.getGeneration(validatedArgs.generation_id);
+    const result = await svgmakerService.getGeneration(validatedArgs.generation_id, client);
 
     const hashTags =
       result.hashTags && result.hashTags.length > 0 ? result.hashTags.join(', ') : 'None';
@@ -152,14 +156,15 @@ export const generationsDeleteToolDefinition = {
 
 export async function handleGenerationsDeleteTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS DELETE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsDeleteToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.deleteGeneration(validatedArgs.generation_id);
+    const result = await svgmakerService.deleteGeneration(validatedArgs.generation_id, client);
 
     return {
       content: [{ type: 'text', text: result.message } as TextContent],
@@ -192,14 +197,15 @@ export const generationsShareToolDefinition = {
 
 export async function handleGenerationsShareTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS SHARE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsShareToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.shareGeneration(validatedArgs.generation_id);
+    const result = await svgmakerService.shareGeneration(validatedArgs.generation_id, client);
 
     const text = [
       'Generation shared successfully.',
@@ -247,7 +253,8 @@ export const generationsDownloadToolDefinition = {
 
 export async function handleGenerationsDownloadTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS DOWNLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -268,7 +275,8 @@ export async function handleGenerationsDownloadTool(
 
     const result = await svgmakerService.downloadGeneration(
       validatedArgs.generation_id,
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     // Fetch the file from the download URL
@@ -322,7 +330,8 @@ export const generationsPreviewToolDefinition = {
 
 export async function handleGenerationsPreviewTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -330,9 +339,13 @@ export async function handleGenerationsPreviewTool(
   try {
     const validatedArgs = GenerationsPreviewToolInputSchema.parse(request.params.arguments);
 
-    const result = await svgmakerService.downloadGeneration(validatedArgs.generation_id, {
-      format: 'png',
-    });
+    const result = await svgmakerService.downloadGeneration(
+      validatedArgs.generation_id,
+      {
+        format: 'png',
+      },
+      client
+    );
     const base64Data = await fetchRemotePreview(result.url);
 
     return {

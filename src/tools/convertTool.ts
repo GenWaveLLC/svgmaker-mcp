@@ -2,6 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
@@ -31,7 +32,8 @@ export const convertToolDefinition = {
 
 export async function handleConvertTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient
 ) {
   const { arguments: args } = request.params;
 
@@ -91,7 +93,7 @@ export async function handleConvertTool(
       let result;
       try {
         // The actual API call
-        result = await svgmakerService.convertImageToSVG(sdkParams as any);
+        result = await svgmakerService.convertImageToSVG(sdkParams as any, client);
       } finally {
         // Clean up the progress interval
         progressManager.stopProcessingProgress();
