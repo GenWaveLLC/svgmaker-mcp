@@ -1,0 +1,52 @@
+name: Deploy to Cloud Run
+
+# Auto-deploys the HTTP server to Cloud Run on every push to main.
+# Can also be run manually from the Actions tab (workflow_dispatch).
+#
+# Auth uses keyless Workload Identity Federation (no JSON key stored in GitHub).
+# The team must configure these repository VARIABLES (Settings > Secrets and
+# variables > Actions > Variables) once — see docs/cloud-deploy-plan.md for setup:
+#   GCP_PROJECT_ID   e.g. svgmaker-prod
+#   GCP_REGION       e.g. asia-south1
+#   GCP_WIF_PROVIDER full provider resource name:
+#                    projects/<NUM>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>
+#   GCP_DEPLOY_SA    deploy service account email:
+#                    cloud-run-deployer@<PROJECT_ID>.iam.gserviceaccount.com
+#   CLOUD_RUN_SERVICE (optional) service name; defaults to svgmaker-mcp
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Required for Workload Identity Federation to mint an OIDC token.
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (keyless / WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE || 'svgmaker-mcp' }}" \
+            --source . \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --allow-unauthenticated \
+            --port 8080
