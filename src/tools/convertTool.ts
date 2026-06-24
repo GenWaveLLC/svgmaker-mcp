@@ -7,6 +7,7 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
+import { buildUrlResult } from '../utils/outputUtils.js';
 
 const ConvertToolInputSchema = z.object({
   input_path: z
@@ -18,8 +19,9 @@ const ConvertToolInputSchema = z.object({
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
+    .optional()
     .describe(
-      'Absolute file path where the generated SVG will be saved. Must include the .svg extension. The resulting file will be a vector representation optimized for scalability. Example: "/Users/username/Documents/vector-art.svg"'
+      'Optional absolute file path where the generated SVG will be saved. When provided, the tool saves the SVG locally (must include the .svg extension). When omitted, the tool returns a SVGMaker-hosted URL instead of writing to disk (cloud mode). Example: "/Users/username/Documents/vector-art.svg"'
     ),
 });
 
@@ -53,11 +55,9 @@ export async function handleConvertTool(
       clientRoots,
       'read'
     );
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      clientRoots,
-      'write'
-    );
+    const validatedOutputPath = validatedArgs.output_path
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, clientRoots, 'write')
+      : undefined;
 
     // Read the input file
     const inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
@@ -102,22 +102,39 @@ export async function handleConvertTool(
       // Update progress: processing complete
       await progressManager.sendSavingProgress();
 
-      if (result.svgText) {
-        await fileUtils.writeFile(validatedOutputPath, result.svgText);
+      if (validatedOutputPath) {
+        // Local/stdio mode: save SVG to disk.
+        if (result.svgText) {
+          await fileUtils.writeFile(validatedOutputPath, result.svgText);
+
+          // Send final progress
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Image converted to SVG successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else {
+          throw new Error('SVGMaker API did not return SVG content.');
+        }
+      } else {
+        // Cloud mode: return the SVGMaker-hosted URL, no disk writes.
+        if (!result.svgUrl) {
+          throw new Error('SVGMaker API did not return a hosted URL.');
+        }
 
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Image converted to SVG successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
-      } else {
-        throw new Error('SVGMaker API did not return SVG content.');
+        return buildUrlResult(
+          'Image converted to SVG successfully.',
+          result.svgUrl,
+          result.svgUrlExpiresIn
+        );
       }
     } catch (error: any) {
       // Ensure cleanup on error

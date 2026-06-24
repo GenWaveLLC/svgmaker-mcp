@@ -8,6 +8,7 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
+import { buildUrlResult } from '../utils/outputUtils.js';
 
 // ── Generations List Tool ──
 
@@ -236,7 +237,10 @@ const GenerationsDownloadToolInputSchema = z.object({
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
-    .describe('Absolute file path where the downloaded file will be saved.'),
+    .optional()
+    .describe(
+      'Optional absolute file path where the downloaded file will be saved. When provided, the tool saves the file locally. When omitted, the tool returns a SVGMaker-hosted download URL instead of writing to disk (cloud mode).'
+    ),
   format: z
     .enum(['svg', 'webp', 'png', 'svg-optimized', 'svgz'])
     .optional()
@@ -262,11 +266,9 @@ export async function handleGenerationsDownloadTool(
   try {
     const validatedArgs = GenerationsDownloadToolInputSchema.parse(request.params.arguments);
 
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      [],
-      'write'
-    );
+    const validatedOutputPath = validatedArgs.output_path
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, [], 'write')
+      : undefined;
 
     // Build SDK params with only defined fields
     const params: Record<string, any> = {};
@@ -279,7 +281,15 @@ export async function handleGenerationsDownloadTool(
       client
     );
 
-    // Fetch the file from the download URL
+    if (!validatedOutputPath) {
+      // Cloud mode: return the SVGMaker-hosted download URL, no disk writes.
+      if (!result.url) {
+        throw new Error('SVGMaker API did not return a hosted URL.');
+      }
+      return buildUrlResult('Generation download ready.', result.url, result.urlExpiresIn);
+    }
+
+    // Local/stdio mode: fetch the file from the download URL and save it.
     const response = await fetch(result.url);
     if (!response.ok) {
       throw new Error(`Failed to download file: HTTP ${response.status}`);

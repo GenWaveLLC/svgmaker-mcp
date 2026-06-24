@@ -7,6 +7,7 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
+import { buildUrlResult } from '../utils/outputUtils.js';
 
 const EditToolInputSchema = z
   .object({
@@ -33,8 +34,9 @@ const EditToolInputSchema = z
     output_path: z
       .string()
       .min(1, 'Output path cannot be empty.')
+      .optional()
       .describe(
-        'Absolute file path where the generated SVG will be saved. Must include the .svg extension. Example: "/Users/username/Documents/modified-artwork.svg"'
+        'Optional. Absolute file path where the edited SVG will be saved locally. Must include the .svg extension. Example: "/Users/username/Documents/modified-artwork.svg". When provided, the file is saved to disk. When omitted (cloud mode), the tool returns a hosted SVGMaker URL instead of saving a file.'
       ),
     quality: z
       .enum(['low', 'medium', 'high'])
@@ -144,11 +146,14 @@ export async function handleEditTool(
     }
 
     const clientRoots: any[] = [];
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      clientRoots,
-      'write'
-    );
+    let validatedOutputPath: string | undefined;
+    if (validatedArgs.output_path) {
+      validatedOutputPath = await fileUtils.resolveAndValidatePath(
+        validatedArgs.output_path,
+        clientRoots,
+        'write'
+      );
+    }
 
     let inputImage: Buffer;
     if (validatedArgs.generation_id) {
@@ -259,40 +264,58 @@ export async function handleEditTool(
       // Update progress: processing complete
       await progressManager.sendSavingProgress();
 
-      if (validatedArgs.raster && result.imageUrl) {
-        const response = await fetch(result.imageUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to download raster image: HTTP ${response.status}`);
+      if (validatedOutputPath) {
+        // Local/stdio mode: save the output to disk.
+        if (validatedArgs.raster && result.imageUrl) {
+          const response = await fetch(result.imageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to download raster image: HTTP ${response.status}`);
+          }
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await fileUtils.writeFileBuffer(validatedOutputPath, buffer);
+
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Raster PNG edited successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else if (result.svgText) {
+          await fileUtils.writeFile(validatedOutputPath, result.svgText);
+
+          // Send final progress
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `SVG edited successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else {
+          throw new Error('SVGMaker API did not return SVG content.');
         }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        await fileUtils.writeFileBuffer(validatedOutputPath, buffer);
-
-        await progressManager.sendFinalProgress();
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Raster PNG edited successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
-      } else if (result.svgText) {
-        await fileUtils.writeFile(validatedOutputPath, result.svgText);
-
-        // Send final progress
-        await progressManager.sendFinalProgress();
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `SVG edited successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
       } else {
-        throw new Error('SVGMaker API did not return SVG content.');
+        // Cloud mode: no output path provided, return the hosted URL.
+        await progressManager.sendFinalProgress();
+
+        if (validatedArgs.raster && result.imageUrl) {
+          return buildUrlResult(
+            'Raster PNG edited successfully.',
+            result.imageUrl,
+            result.imageUrlExpiresIn
+          );
+        } else if (result.svgUrl) {
+          return buildUrlResult('SVG edited successfully.', result.svgUrl, result.svgUrlExpiresIn);
+        } else {
+          throw new Error('SVGMaker API did not return a hosted URL.');
+        }
       }
     } catch (error: any) {
       // Ensure cleanup on error
