@@ -13,6 +13,8 @@ name: Deploy to Cloud Run
 #   GCP_DEPLOY_SA    deploy service account email:
 #                    cloud-run-deployer@<PROJECT_ID>.iam.gserviceaccount.com
 #   CLOUD_RUN_SERVICE (optional) service name; defaults to svgmaker-mcp
+#   MCP_PUBLIC_URL   public Cloud Run URL of this server, e.g. https://svgmaker-mcp-xxxxx.run.app
+#   SVGMAKER_AUTH_SERVER_URL (optional) OAuth Authorization Server; defaults to https://svgmaker.io
 
 on:
   push:
@@ -49,4 +51,5 @@ jobs:
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
-            --port 8080
+            --port 8080 \
+            --set-env-vars "MCP_PUBLIC_URL=${{ vars.MCP_PUBLIC_URL }},SVGMAKER_AUTH_SERVER_URL=${{ vars.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.io' }}"

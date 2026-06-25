@@ -8,6 +8,18 @@ import { logToFile } from './utils/logUtils.js';
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const DEFAULT_BASE_URL = 'https://api.svgmaker.io';
 
+// Base URL of the OAuth Authorization Server (svgmaker.io) that issues/validates
+// tokens. Trailing slash stripped so we can safely append paths.
+const AUTH_SERVER = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.io').replace(/\/+$/, '');
+
+// How long a verified token stays trusted in memory before we re-check it with
+// the auth server. Keeps the hot path fast without holding stale tokens too long.
+const TOKEN_CACHE_TTL_MS = 60_000;
+
+// In-memory cache mapping an API key (the OAuth access_token) to the epoch-ms
+// time at which its "verified" status expires. Only successes are cached.
+const tokenCache = new Map<string, number>();
+
 /**
  * Send a JSON response. Safe no-op if headers were already sent.
  */
@@ -39,6 +51,75 @@ function extractApiKey(req: IncomingMessage): string | undefined {
 }
 
 /**
+ * Work out this server's own public base URL (no trailing slash). Used in the
+ * well-known metadata doc and the WWW-Authenticate header so OAuth clients are
+ * pointed back at the right place. We prefer an explicit MCP_PUBLIC_URL, but on
+ * Cloud Run we can also derive it from the forwarded proto/host headers.
+ */
+function getResourceUrl(req: IncomingMessage): string {
+  const configured = process.env.MCP_PUBLIC_URL;
+  if (configured && configured.trim()) {
+    return configured.trim().replace(/\/+$/, '');
+  }
+
+  const fwdProto = req.headers['x-forwarded-proto'];
+  const proto = (typeof fwdProto === 'string' && fwdProto.split(',')[0].trim()) || 'http';
+
+  const fwdHost = req.headers['x-forwarded-host'];
+  const host =
+    (typeof fwdHost === 'string' && fwdHost.split(',')[0].trim()) ||
+    req.headers['host'] ||
+    `localhost:${PORT}`;
+
+  return `${proto}://${host}`;
+}
+
+/**
+ * Reply with a 401 that tells an OAuth client where to find our protected-resource
+ * metadata. This WWW-Authenticate header is exactly what makes ChatGPT/Claude/Cursor
+ * pop open the browser login flow instead of just erroring out.
+ */
+function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: string): void {
+  if (res.headersSent) return;
+  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource`;
+  res.writeHead(401, {
+    'Content-Type': 'application/json',
+    'WWW-Authenticate': `Bearer resource_metadata="${metadataUrl}"`,
+  });
+  res.end(JSON.stringify({ error: message }));
+}
+
+/**
+ * Check that an API key (the OAuth access_token) is real and active by asking the
+ * auth server. Verified keys are remembered for a short while so we don't hit the
+ * auth server on every single request. Failures are never cached.
+ */
+async function validateToken(apiKey: string): Promise<boolean> {
+  // Fast path: recently verified and not yet expired.
+  const expiry = tokenCache.get(apiKey);
+  if (expiry !== undefined && expiry > Date.now()) {
+    return true;
+  }
+
+  try {
+    const res = await fetch(`${AUTH_SERVER}/api/v1/plugin/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+    const data = (await res.json()) as { valid?: boolean };
+    if (res.ok && data.valid === true) {
+      tokenCache.set(apiKey, Date.now() + TOKEN_CACHE_TTL_MS);
+      return true;
+    }
+    return false;
+  } catch {
+    // Network/parse error: treat as invalid, but don't cache the failure.
+    return false;
+  }
+}
+
+/**
  * Read the raw request body and JSON.parse it.
  */
 function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -66,10 +147,18 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
  * fresh stateless MCP server, then delegate to the Streamable HTTP transport.
  */
 async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  // a. Extract the API key.
+  // a. Extract the API key. A missing key gets the browser-flow 401.
   const apiKey = extractApiKey(req);
   if (!apiKey) {
-    sendJson(res, 401, { error: 'Missing SVGMaker API key' });
+    sendUnauthorized(res, req, 'Missing SVGMaker API key');
+    return;
+  }
+
+  // a2. Validate the key with the auth server (covers both browser-issued
+  //     tokens and manually-pasted keys) before doing any real work.
+  const valid = await validateToken(apiKey);
+  if (!valid) {
+    sendUnauthorized(res, req, 'Invalid or expired SVGMaker API key');
     return;
   }
 
@@ -130,6 +219,16 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
       logToFile(`Error handling /mcp request: ${err instanceof Error ? err.stack : String(err)}`);
       sendJson(res, 500, { error: 'Internal server error' });
     }
+    return;
+  }
+
+  // OAuth Protected Resource Metadata. OAuth clients fetch this to discover which
+  // Authorization Server can log the user in, which kicks off the browser flow.
+  if (req.method === 'GET' && url === '/.well-known/oauth-protected-resource') {
+    sendJson(res, 200, {
+      resource: getResourceUrl(req),
+      authorization_servers: [AUTH_SERVER],
+    });
     return;
   }
 
