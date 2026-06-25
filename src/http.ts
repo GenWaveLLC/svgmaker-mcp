@@ -81,7 +81,7 @@ function getResourceUrl(req: IncomingMessage): string {
  */
 function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: string): void {
   if (res.headersSent) return;
-  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource`;
+  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource/mcp`;
   res.writeHead(401, {
     'Content-Type': 'application/json',
     'WWW-Authenticate': `Bearer resource_metadata="${metadataUrl}"`,
@@ -222,11 +222,20 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
     return;
   }
 
-  // OAuth Protected Resource Metadata. OAuth clients fetch this to discover which
-  // Authorization Server can log the user in, which kicks off the browser flow.
-  if (req.method === 'GET' && url === '/.well-known/oauth-protected-resource') {
+  // OAuth Protected Resource Metadata (RFC 9728). Clients fetch this to discover
+  // which Authorization Server can log the user in, which kicks off the browser
+  // flow. We serve it at BOTH the root path and the `/mcp` path-suffixed location:
+  // some clients (Claude Code) probe the root, others (ChatGPT) follow RFC 9728
+  // and probe `/.well-known/oauth-protected-resource/mcp`. The `resource` we
+  // return matches the path so it points at the same MCP endpoint either way.
+  if (
+    req.method === 'GET' &&
+    (url === '/.well-known/oauth-protected-resource' ||
+      url === '/.well-known/oauth-protected-resource/mcp')
+  ) {
+    const base = getResourceUrl(req);
     sendJson(res, 200, {
-      resource: getResourceUrl(req),
+      resource: url.endsWith('/mcp') ? `${base}/mcp` : base,
       authorization_servers: [AUTH_SERVER],
     });
     return;
