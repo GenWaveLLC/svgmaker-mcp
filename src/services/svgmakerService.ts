@@ -5,7 +5,8 @@ let svgMaker: SVGMakerClient;
 export function createSvgmakerClient(
   apiKey: string,
   rateLimitRpmStr?: string,
-  baseUrl?: string
+  baseUrl?: string,
+  accessToken?: string
 ): SVGMakerClient {
   const rateLimit = rateLimitRpmStr ? parseInt(rateLimitRpmStr, 10) : 2;
   const config: any = {
@@ -19,6 +20,15 @@ export function createSvgmakerClient(
   // Add baseUrl to config if provided
   if (baseUrl) {
     config.baseUrl = baseUrl;
+  }
+
+  // OAuth Bearer mode (HTTP transport): when an access token is supplied we ask
+  // the SDK to send `Authorization: Bearer <accessToken>` instead of `x-api-key`,
+  // and pass an empty positional apiKey. The stdio path never sets this, so it
+  // keeps flowing the apiKey as `x-api-key` exactly as before.
+  if (accessToken) {
+    config.accessToken = accessToken;
+    return new SVGMakerClient('', config);
   }
 
   return new SVGMakerClient(apiKey, config);

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createMcpServer } from './server.js';
 import { createSvgmakerClient } from './services/svgmakerService.js';
 import { logToFile } from './utils/logUtils.js';
@@ -8,17 +9,25 @@ import { logToFile } from './utils/logUtils.js';
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const DEFAULT_BASE_URL = 'https://api.svgmaker.io';
 
-// Base URL of the OAuth Authorization Server (svgmaker.io) that issues/validates
-// tokens. Trailing slash stripped so we can safely append paths.
-const AUTH_SERVER = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.io').replace(/\/+$/, '');
+// Base URL of the OAuth Authorization Server (svgmaker.io) that issues/signs the
+// JWT access tokens. This is the expected `iss` claim. Trailing slash stripped so
+// we can safely append paths.
+const AUTH_SERVER = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.io').replace(
+  /\/+$/,
+  ''
+);
 
-// How long a verified token stays trusted in memory before we re-check it with
-// the auth server. Keeps the hot path fast without holding stale tokens too long.
-const TOKEN_CACHE_TTL_MS = 60_000;
+// Base URL of the protected resource API (api.svgmaker.io) the JWT is minted for.
+// This is the expected `aud` claim. Trailing slash stripped for a clean compare.
+const API_RESOURCE = (process.env.SVGMAKER_API_RESOURCE || 'https://api.svgmaker.io').replace(
+  /\/+$/,
+  ''
+);
 
-// In-memory cache mapping an API key (the OAuth access_token) to the epoch-ms
-// time at which its "verified" status expires. Only successes are cached.
-const tokenCache = new Map<string, number>();
+// Remote JWKS for verifying RS256 access-token signatures. jose fetches the key
+// set from the auth server's well-known endpoint, caches it, and refreshes on a
+// `kid` miss, so we don't need our own token/JWKS cache here.
+const JWKS = createRemoteJWKSet(new URL(`${AUTH_SERVER}/.well-known/jwks.json`));
 
 /**
  * Send a JSON response. Safe no-op if headers were already sent.
@@ -30,15 +39,11 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * Extract the SVGMaker API key from request headers.
- * Prefers `x-svgmaker-api-key`, falls back to `Authorization: Bearer <key>`.
+ * Extract the OAuth access token from the request. HTTP transport accepts the
+ * token ONLY as `Authorization: Bearer <jwt>` — pasted-key headers are no longer
+ * supported, since every request must carry a real browser-issued JWT.
  */
-function extractApiKey(req: IncomingMessage): string | undefined {
-  const headerKey = req.headers['x-svgmaker-api-key'];
-  if (typeof headerKey === 'string' && headerKey.trim()) {
-    return headerKey.trim();
-  }
-
+function extractBearerToken(req: IncomingMessage): string | undefined {
   const auth = req.headers['authorization'];
   if (typeof auth === 'string') {
     const match = auth.match(/^Bearer\s+(.+)$/i);
@@ -90,32 +95,27 @@ function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: st
 }
 
 /**
- * Check that an API key (the OAuth access_token) is real and active by asking the
- * auth server. Verified keys are remembered for a short while so we don't hit the
- * auth server on every single request. Failures are never cached.
+ * Verify an OAuth access token locally against the auth server's JWKS. We require
+ * an RS256 JWT signed by svgmaker.io with our exact `iss`/`aud`; `jwtVerify` with
+ * these options rejects bad signatures, wrong issuer/audience, expired tokens and
+ * anything that isn't a proper JWT. A small clock tolerance absorbs skew. On any
+ * failure (including an unreachable JWKS) we treat the token as unauthorized — we
+ * never fall back to trusting a token just because it is bearer-shaped.
+ *
+ * Returns the verified `sub` (Firebase UID) on success, or undefined on failure.
  */
-async function validateToken(apiKey: string): Promise<boolean> {
-  // Fast path: recently verified and not yet expired.
-  const expiry = tokenCache.get(apiKey);
-  if (expiry !== undefined && expiry > Date.now()) {
-    return true;
-  }
-
+async function verifyAccessToken(token: string): Promise<string | undefined> {
   try {
-    const res = await fetch(`${AUTH_SERVER}/api/v1/plugin/auth/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey }),
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: AUTH_SERVER,
+      audience: API_RESOURCE,
+      clockTolerance: 30,
     });
-    const data = (await res.json()) as { valid?: boolean };
-    if (res.ok && data.valid === true) {
-      tokenCache.set(apiKey, Date.now() + TOKEN_CACHE_TTL_MS);
-      return true;
-    }
-    return false;
+    // A verified token must identify a user. Reject (undefined) when `sub` is
+    // missing or not a non-empty string instead of letting it through.
+    return typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
   } catch {
-    // Network/parse error: treat as invalid, but don't cache the failure.
-    return false;
+    return undefined;
   }
 }
 
@@ -147,20 +147,21 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
  * fresh stateless MCP server, then delegate to the Streamable HTTP transport.
  */
 async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  // a. Extract the API key. A missing key gets the browser-flow 401.
-  const apiKey = extractApiKey(req);
-  if (!apiKey) {
-    sendUnauthorized(res, req, 'Missing SVGMaker API key');
+  // a. Extract the Bearer access token. A missing token gets the browser-flow 401.
+  const token = extractBearerToken(req);
+  if (!token) {
+    sendUnauthorized(res, req, 'Missing OAuth access token');
     return;
   }
 
-  // a2. Validate the key with the auth server (covers both browser-issued
-  //     tokens and manually-pasted keys) before doing any real work.
-  const valid = await validateToken(apiKey);
-  if (!valid) {
-    sendUnauthorized(res, req, 'Invalid or expired SVGMaker API key');
+  // a2. Verify the JWT locally against the auth server's JWKS before doing any
+  //     real work. A failed verification gets the browser-flow 401 too.
+  const userId = await verifyAccessToken(token);
+  if (!userId) {
+    sendUnauthorized(res, req, 'Invalid or expired OAuth access token');
     return;
   }
+  logToFile(`Authenticated /mcp request for user ${userId}`);
 
   // b. Read and parse the request body.
   let parsedBody: unknown;
@@ -171,11 +172,14 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
     return;
   }
 
-  // c. Build a per-request client.
+  // c. Build a per-request client. The verified JWT is forwarded downstream to
+  //    api.svgmaker.io as a Bearer token (the SDK's accessToken mode), not as an
+  //    x-api-key. apiKey stays empty here — HTTP transport has no static key.
   const client = createSvgmakerClient(
-    apiKey,
+    '',
     process.env.SVGMMAKER_RATE_LIMIT_RPM,
-    process.env.SVGMAKER_BASE_URL || DEFAULT_BASE_URL
+    process.env.SVGMAKER_BASE_URL || DEFAULT_BASE_URL,
+    token
   );
 
   // d. Build a fresh server.
