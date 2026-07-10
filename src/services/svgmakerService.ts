@@ -83,6 +83,19 @@ export async function convertImageToSVG(
   return result;
 }
 
+export async function removeBackground(
+  params: SVGMakerTypes.RemoveBackgroundParams,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.RemoveBackgroundResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  // Always request svgText so local-save mode has SVG content; respect the caller's
+  // storage choice (true/false), defaulting to true when unspecified.
+  const configuredParams = { ...params, svgText: true, storage: params.storage ?? true };
+  const result = await c.removeBackground.configure(configuredParams).execute();
+  return result;
+}
+
 export async function getAccountInfo(
   client?: SVGMakerClient
 ): Promise<SVGMakerTypes.AccountResponse> {

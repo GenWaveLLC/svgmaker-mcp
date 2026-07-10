@@ -5,6 +5,10 @@ import { generateToolDefinition, handleGenerateTool } from './tools/generateTool
 import { editToolDefinition, handleEditTool } from './tools/editTool.js';
 import { convertToolDefinition, handleConvertTool } from './tools/convertTool.js';
 import {
+  removeBackgroundToolDefinition,
+  handleRemoveBackgroundTool,
+} from './tools/removeBackgroundTool.js';
+import {
   accountInfoToolDefinition,
   handleAccountInfoTool,
   accountUsageToolDefinition,
@@ -63,6 +67,7 @@ export function createMcpServer(client?: SVGMakerClient): Server {
         generateToolDefinition,
         editToolDefinition,
         convertToolDefinition,
+        removeBackgroundToolDefinition,
         accountInfoToolDefinition,
         accountUsageToolDefinition,
         generationsListToolDefinition,
@@ -90,6 +95,8 @@ export function createMcpServer(client?: SVGMakerClient): Server {
         return await handleEditTool(server, request, client);
       case 'svgmaker_convert':
         return await handleConvertTool(server, request, client);
+      case 'svgmaker_remove_background':
+        return await handleRemoveBackgroundTool(server, request, client);
       case 'svgmaker_account_info':
         return await handleAccountInfoTool(server, request, client);
       case 'svgmaker_account_usage':
