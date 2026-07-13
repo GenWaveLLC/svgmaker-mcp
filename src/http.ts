@@ -245,6 +245,19 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
     return;
   }
 
+  // The Streamable HTTP transport here is stateless (no session, no
+  // server-initiated stream), so we don't offer an SSE stream at GET /mcp nor
+  // session teardown at DELETE /mcp. Per the MCP spec a server that doesn't
+  // support these MUST answer 405 (not 404): clients like Cursor open a GET SSE
+  // stream after connecting, and a 404 makes them treat the session as dead and
+  // tombstone the transport, whereas a 405 tells them to skip the optional
+  // stream and continue over POST.
+  if ((req.method === 'GET' || req.method === 'DELETE') && url === '/mcp') {
+    res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return;
+  }
+
   sendJson(res, 404, { error: 'Not found' });
 }
 
