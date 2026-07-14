@@ -15,6 +15,7 @@ async function main() {
 
   const apiKey = process.env.SVGMAKER_API_KEY;
   if (!apiKey) {
+    console.error('SVGMaker MCP: SVGMAKER_API_KEY is not set. Exiting.');
     process.exit(1);
   }
 
@@ -41,6 +42,9 @@ async function main() {
 }
 
 main().catch((error) => {
+  // stderr is safe with the stdio transport (only stdout carries MCP protocol),
+  // so surface fatal errors unconditionally for Claude Code's MCP logs.
+  console.error('SVGMaker MCP: fatal error during startup:', error);
   logFatalError(error);
   process.exit(1);
 });
