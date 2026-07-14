@@ -19,6 +19,7 @@ A powerful MCP server for generating, editing, and converting SVG images using S
 - **✏️ Smart SVG Editing**: Edit existing SVGs with natural language
 - **🖼️ Raster Mode**: Skip vectorization and get a quick PNG instead of SVG
 - **🔄 Image-to-SVG Conversion**: Convert any image to scalable SVG
+- **🪄 Background Removal**: Isolate the foreground subject and get a clean SVG with transparency
 - **👁️ Inline Image Preview**: Preview generations and gallery items directly in chat
 - **🔒 Secure File Operations**: Built-in path validation and security
 - **⚡ Real-Time Progress**: Live updates during operations
@@ -274,6 +275,30 @@ Edit an existing SVG file:
 </mcp>
 ```
 
+### 🔌 Codex
+
+1. Add the server with the Codex CLI:
+```bash
+codex mcp add svgmaker --env SVGMAKER_API_KEY=your_api_key_here -- npx -y @genwave/svgmaker-mcp
+```
+
+2. Example usage in Codex:
+```
+Generate an SVG of a minimalist mountain landscape and save it to ./landscape.svg:
+<mcp>
+{
+  "server": "svgmaker",
+  "tool": "svgmaker_generate",
+  "arguments": {
+    "prompt": "Minimalist mountain landscape with sun",
+    "output_path": "./landscape.svg",
+    "quality": "high",
+    "aspectRatio": "landscape"
+  }
+}
+</mcp>
+```
+
 ## 🛠️ Available Tools
 
 ### svgmaker_generate
@@ -373,6 +398,33 @@ Convert raster images to SVG using AI-powered vectorization.
   "output_path": "/path/to/vector.svg"
 }
 ```
+
+### svgmaker_remove_background
+
+Remove the background from an image and get the result as a clean SVG with transparency. The AI isolates the foreground subject, removes the background, and vectorizes the result. Accepts raster formats (PNG, JPEG, WebP, GIF, TIFF, AVIF) and SVG.
+
+Provide an `output_path` (with a `.svg` extension) to save the SVG locally:
+
+```json
+{
+  "input_path": "/path/to/photo.png",
+  "output_path": "/path/to/cutout.svg"
+}
+```
+
+Omit `output_path` to get a SVGMaker-hosted URL instead of writing to disk (cloud mode):
+
+```json
+{
+  "input_path": "/path/to/photo.png"
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input_path` | string | Absolute path to the image to process. Required. |
+| `output_path` | string | Optional. Absolute path (must end in `.svg`) to save the result. When omitted, a hosted URL is returned instead. |
+| `storage` | boolean | When true, stores the resulting SVG permanently in cloud storage (appears in your generations). When false, a temporary hosted URL is returned. Defaults to true. |
 
 ### svgmaker_account_info
 
