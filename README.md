@@ -580,7 +580,7 @@ Preview a local image file by returning it directly in the chat context. Support
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `SVGMAKER_API_KEY` | Your SVGMaker API key | ✅ Yes | - |
-| `SVGMMAKER_RATE_LIMIT_RPM` | API rate limit (requests per minute) | ❌ No | 2 |
+| `SVGMAKER_RATE_LIMIT_RPM` | API rate limit (requests per minute) | ❌ No | 2 |
 | `SVGMAKER_BASE_URL` | Custom SVGMaker API base URL | ❌ No | `https://api.svgmaker.io` |
 | `SVGMAKER_DEBUG` | Enable debug logging | ❌ No | `false` |
 

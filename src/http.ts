@@ -177,7 +177,7 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
   //    x-api-key. apiKey stays empty here — HTTP transport has no static key.
   const client = createSvgmakerClient(
     '',
-    process.env.SVGMMAKER_RATE_LIMIT_RPM,
+    process.env.SVGMAKER_RATE_LIMIT_RPM,
     process.env.SVGMAKER_BASE_URL || DEFAULT_BASE_URL,
     token
   );

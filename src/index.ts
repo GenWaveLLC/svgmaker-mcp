@@ -22,7 +22,7 @@ async function main() {
   // Initialize SVGMaker Service (sets the global singleton used by stdio handlers)
   initializeSvgmakerService(
     apiKey,
-    process.env.SVGMMAKER_RATE_LIMIT_RPM,
+    process.env.SVGMAKER_RATE_LIMIT_RPM,
     process.env.SVGMAKER_BASE_URL || 'https://api.svgmaker.io'
   );
 
