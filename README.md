@@ -125,6 +125,25 @@ Generate an SVG of a minimalist mountain landscape:
 </mcp>
 ```
 
+### 🔌 Claude Code
+
+**stdio (API key):**
+```bash
+claude mcp add svgmaker --env SVGMAKER_API_KEY=your_api_key_here -- npx -y @genwave/svgmaker-mcp
+```
+
+**HTTPS (OAuth browser login — no API key):**
+```bash
+claude mcp add --transport http svgmaker https://mcp.svgmaker.io/mcp
+```
+
+Then run `/mcp` inside Claude Code, select **svgmaker**, and complete the browser login.
+
+Example prompt:
+```
+Generate an SVG of a minimalist mountain landscape and save it to ./landscape.svg
+```
+
 ### 🔌 Cursor
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=svgmaker&config=eyJ0eXBlIjoibG9jYWwiLCJjb21tYW5kIjoibnB4IEBnZW53YXZlL3N2Z21ha2VyLW1jcCIsInRyYW5zcG9ydCI6InN0ZGlvIiwiZW52Ijp7IlNWR01BS0VSX0FQSV9LRVkiOiJ5b3VyX2FwaV9rZXlfaGVyZSJ9fQ%3D%3D)
@@ -132,7 +151,9 @@ Generate an SVG of a minimalist mountain landscape:
 
 Or configure manually:
 
-1. Configure in cursor settings:
+1. Configure in cursor settings.
+
+   **stdio (API key):**
 ```json
 {
   "mcpServers": {
@@ -144,6 +165,17 @@ Or configure manually:
       "env": {
         "SVGMAKER_API_KEY": "your_api_key_here"
       }
+    }
+  }
+}
+```
+
+   **HTTPS (OAuth browser login — no API key):**
+```json
+{
+  "mcpServers": {
+    "svgmaker": {
+      "url": "https://mcp.svgmaker.io/mcp"
     }
   }
 }
@@ -173,7 +205,9 @@ Use svgmaker to edit the logo.svg file and make it more modern:
 
 Or configure manually:
 
-1. Configure in settings.json:
+1. Configure in settings.json.
+
+   **stdio (API key):**
 ```json
 {
   "servers": {
@@ -184,6 +218,18 @@ Or configure manually:
       "env": {
         "SVGMAKER_API_KEY": "<your_api_key>"
       }
+    }
+  }
+}
+```
+
+   **HTTPS (OAuth browser login — no API key):**
+```json
+{
+  "servers": {
+    "svgmaker": {
+      "type": "http",
+      "url": "https://mcp.svgmaker.io/mcp"
     }
   }
 }
@@ -208,7 +254,9 @@ Generate a new icon for my app:
 
 ### 🔌 WindSurf
 
-1. Configure in settings:
+1. Configure in `~/.codeium/windsurf/mcp_config.json`.
+
+   **stdio (API key):**
 ```json
 {
   "mcpServers": {
@@ -218,6 +266,17 @@ Generate a new icon for my app:
       "env": {
         "SVGMAKER_API_KEY": "<your_api_key>"
       }
+    }
+  }
+}
+```
+
+   **HTTPS (OAuth browser login — no API key):**
+```json
+{
+  "mcpServers": {
+    "svgmaker": {
+      "serverUrl": "https://mcp.svgmaker.io/mcp"
     }
   }
 }
@@ -240,7 +299,9 @@ Convert the company logo to SVG:
 
 ### 🔌 Zed
 
-1. Configure in settings:
+1. Configure in settings.
+
+   **stdio (API key):**
 ```json
 {
   "context_servers": {
@@ -257,6 +318,19 @@ Convert the company logo to SVG:
   }
 }
 ```
+
+   **HTTPS (OAuth browser login — no API key):**
+```json
+{
+  "context_servers": {
+    "svgmaker": {
+      "url": "https://mcp.svgmaker.io/mcp"
+    }
+  }
+}
+```
+
+   You can also add it from the UI: **Settings → AI → General → MCP Servers → Add Server → Add Remote MCP Server**.
 
 2. Example usage in Zed:
 ```
@@ -277,9 +351,16 @@ Edit an existing SVG file:
 
 ### 🔌 Codex
 
-1. Add the server with the Codex CLI:
+1. Add the server with the Codex CLI.
+
+   **stdio (API key):**
 ```bash
 codex mcp add svgmaker --env SVGMAKER_API_KEY=your_api_key_here -- npx -y @genwave/svgmaker-mcp
+```
+
+   **HTTPS (OAuth browser login — no API key):**
+```bash
+codex mcp add svgmaker --url https://mcp.svgmaker.io/mcp
 ```
 
 2. Example usage in Codex:
