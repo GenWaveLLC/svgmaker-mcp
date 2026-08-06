@@ -38,9 +38,9 @@ A powerful MCP server for generating, editing, and converting SVG images using S
 
 ## 💻 Requirements
 
-- Node.js: Minimum version 18.0.0
+- Node.js: Minimum version 20.9.0
   ```bash
-  node --version  # Should be >= v18.0.0
+  node --version  # Should be >= v20.9.0
   ```
 - npm: Minimum version 7.0.0
   ```bash
