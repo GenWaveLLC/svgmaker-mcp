@@ -210,7 +210,9 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
   // Strip any query string for routing purposes.
   const url = (req.url || '').split('?')[0];
 
-  if (req.method === 'GET' && url === '/healthz') {
+  // Note: /healthz is reserved by Google Frontend on run.app domains (requests
+  // never reach the container), so the health endpoint lives at /health.
+  if (req.method === 'GET' && url === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('ok');
     return;

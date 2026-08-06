@@ -28,7 +28,7 @@ Steps to deploy the **HTTPS server** (`build/http.js`) to Google Cloud Run at `h
 
 ## 2. Quick check
 
-- [ ] Health: `curl <SERVICE_URL>/healthz` → prints `ok`.
+- [ ] Health: `curl <SERVICE_URL>/health` → prints `ok`.
 - [ ] Login trigger: `curl -i -X POST <SERVICE_URL>/mcp` → returns **401** with a `WWW-Authenticate` header.
 
 ---
@@ -51,7 +51,7 @@ Two places — neither is in the code:
 
 ## 4. Verify
 
-- [ ] `curl https://mcp.svgmaker.io/healthz` → `ok`.
+- [ ] `curl https://mcp.svgmaker.io/health` → `ok`.
 - [ ] `claude mcp add --transport http svgmaker https://mcp.svgmaker.io/mcp`
 - [ ] Confirm: browser opens → login → Allow → tool returns an image.
 
@@ -73,5 +73,5 @@ Two places — neither is in the code:
 | Set GCP project | `gcloud config set project <PROJECT_ID>` |
 | Deploy (build + push) | `./deploy.sh` |
 | Update settings only | `./deploy.sh --update` |
-| Health check | `curl https://mcp.svgmaker.io/healthz` |
+| Health check | `curl https://mcp.svgmaker.io/health` |
 | Add MCP to client | `claude mcp add --transport http svgmaker https://mcp.svgmaker.io/mcp` |

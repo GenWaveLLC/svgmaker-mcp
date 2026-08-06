@@ -92,7 +92,7 @@ IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 if [ "$UPDATE_MODE" = false ]; then
     # Build and push Docker image
     echo "Building Docker image..."
-    docker build -t "$IMAGE_NAME" .
+    docker build --platform linux/amd64 -t "$IMAGE_NAME" .
 
     echo "Pushing image to Google Container Registry..."
     docker push "$IMAGE_NAME"
@@ -127,7 +127,7 @@ SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --
 echo "Service URL: $SERVICE_URL"
 echo ""
 echo "Basic health check (works without the auth server):"
-echo "  curl ${SERVICE_URL}/healthz"
+echo "  curl ${SERVICE_URL}/health"
 echo ""
 echo "Login trigger check (should return 401 with a WWW-Authenticate header):"
 echo "  curl -i -X POST ${SERVICE_URL}/mcp"
