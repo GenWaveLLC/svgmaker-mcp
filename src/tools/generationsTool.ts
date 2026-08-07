@@ -4,11 +4,12 @@ import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sd
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildUrlResult } from '../utils/outputUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
 
 // ── Generations List Tool ──
 
@@ -34,7 +35,8 @@ export const generationsListToolDefinition = {
 export async function handleGenerationsListTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -101,7 +103,8 @@ export const generationsGetToolDefinition = {
 export async function handleGenerationsGetTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS GET TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -158,7 +161,8 @@ export const generationsDeleteToolDefinition = {
 export async function handleGenerationsDeleteTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DELETE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -199,7 +203,8 @@ export const generationsShareToolDefinition = {
 export async function handleGenerationsShareTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS SHARE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -258,7 +263,8 @@ export const generationsDownloadToolDefinition = {
 export async function handleGenerationsDownloadTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DOWNLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -266,8 +272,11 @@ export async function handleGenerationsDownloadTool(
   try {
     const validatedArgs = GenerationsDownloadToolInputSchema.parse(request.params.arguments);
 
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
+
     const validatedOutputPath = validatedArgs.output_path
-      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, [], 'write')
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, 'write')
       : undefined;
 
     // Build SDK params with only defined fields
@@ -341,7 +350,8 @@ export const generationsPreviewToolDefinition = {
 export async function handleGenerationsPreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);

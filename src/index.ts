@@ -27,7 +27,7 @@ async function main() {
   );
 
   // Create the MCP server. No client is passed, so handlers use the global singleton.
-  const server = createMcpServer();
+  const server = createMcpServer(undefined, { transport: 'stdio' });
 
   // Connect to stdio transport
   const transport = new StdioServerTransport();

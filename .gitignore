@@ -41,6 +41,9 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 
+# Test scratch directories
+.tmp-test-*/
+
 # nyc test coverage
 .nyc_output
 

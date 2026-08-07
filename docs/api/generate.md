@@ -9,7 +9,7 @@ Generates SVG images from text prompts using the SVGMaker API.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `prompt` | string | Yes | — | Detailed text description of the SVG to generate. Include style, colors, composition, and key visual elements for best results |
-| `output_path` | string | Yes | — | Absolute file path where the SVG will be saved (must end with .svg) |
+| `output_path` | string | No | — | Absolute file path where the SVG will be saved (must end with .svg). When omitted, a hosted SVGMaker URL is returned instead. Not supported over the HTTPS transport, which always returns a URL |
 | `quality` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | Quality level. low (fast, basic), medium (balanced), high (best quality, forces square aspect ratio) |
 | `aspectRatio` | `"square"` \| `"portrait"` \| `"landscape"` | No | `"auto"` | Aspect ratio for the generated SVG. If not specified, AI determines the best ratio |
 | `background` | `"auto"` \| `"transparent"` \| `"opaque"` | No | `"auto"` | Background style. auto (AI determines), transparent (no background), opaque (solid background) |

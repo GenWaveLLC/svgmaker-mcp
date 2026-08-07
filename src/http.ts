@@ -183,7 +183,7 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
   );
 
   // d. Build a fresh server.
-  const server = createMcpServer(client);
+  const server = createMcpServer(client, { transport: 'http' });
 
   // e. Create a stateless transport and wire it up.
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

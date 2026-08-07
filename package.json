@@ -19,12 +19,13 @@
     "start": "node build/index.js",
     "dev": "tsx watch src/index.ts",
     "prepare": "npm run build",
-    "test": "echo \"Warning: no tests implemented yet\" && exit 0",
+    "test": "vitest run",
     "lint": "eslint . --ext .ts --config .eslintrc.json",
     "lint:fix": "eslint . --ext .ts --fix --config .eslintrc.json",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run lint && npm run build",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
@@ -52,12 +53,13 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
-    "@genwave/svgmaker-sdk": "1.2.0",
+    "@genwave/svgmaker-sdk": "file:../svgmaker-sdk-node",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "dotenv": "^16.5.0",
     "jose": "^6.2.3",
     "sharp": "^0.35.3",
-    "zod": "3.25.67"
+    "zod": "3.25.67",
+    "zod-to-json-schema": "^3.25.2"
   },
   "overrides": {
     "zod": "3.25.67"
@@ -73,6 +75,7 @@
     "rimraf": "^6.0.1",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

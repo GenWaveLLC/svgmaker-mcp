@@ -12,15 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OAuth 2.0 protected-resource support for the HTTP transport: browser login via bearer tokens, verified locally against the auth server's JWKS
 - `svgmaker_remove_background` tool
 - Generate and edit return a hosted URL when `output_path` is omitted
+- Unified `input` parameter on `svgmaker_edit`, `svgmaker_convert` and `svgmaker_remove_background`, accepting a local file path (stdio) or an `https://` URL, plus a generation/gallery id on edit and remove-background. `input_path` remains an accepted alias everywhere, `generation_id` on edit and remove-background
+- `svgmaker_convert` now accepts URLs, and `svgmaker_remove_background` accepts URLs and generation ids, which they never supported before
+- `svgmaker_preview` accepts `input` alongside the existing `file_path`
+- `svgmaker_upload` tool, registered only over the HTTPS transport, minting signed PUT and read URLs so a local file can be used with the cloud server. Image bytes never pass through the MCP server
 - Dockerfile, Cloud Run deploy script (`deploy.sh`), and `docs/RELEASE.md`
 
 ### Changed
 - **Minimum Node.js is now 20.9.0** (was 18.0.0), required by `sharp` 0.35
 - Upgraded `@genwave/svgmaker-sdk` to 1.2.0 and `@modelcontextprotocol/sdk` to 1.30.0
+- URL inputs are handed to the SVGMaker API as `imageUrl` rather than downloaded, so the server no longer buffers image bytes
+- Generation ids on `svgmaker_edit` and `svgmaker_remove_background` are passed straight through as `generationId` instead of being resolved to a download URL first. The API resolves them internally, which removes a redundant round trip, works for free accounts (the download endpoint is paid-only), and no longer depends on the proxy URL being https
+- `svgmaker_convert` no longer accepts a generation id and its `generation_id` parameter is gone. The API resolves a generation to a downscaled raster preview, so vectorizing one produced a strictly worse copy of an SVG the user already owned. A generation id passed as `input` is now rejected by the MCP server with an actionable message
+- `output_path` is rejected over the HTTPS transport instead of silently writing into the container and reporting success
 
 ### Fixed
 - `sharp` 0.35.3 picks up the libvips CVE fixes (CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591)
 - Removed dependency overrides that pinned `hono`, `fast-uri`, `ip-address` and others to versions that later became vulnerable, blocking `npm audit fix`
+- Generation ids no longer fail against a locally hosted API: the old resolver went through `/v1/generations/{id}/download`, whose proxy URL is `http://` in development and was rejected by the API's https-only SSRF guard
+- `svgmaker_generate` docs no longer mark `output_path` as required
 - `SVGMAKER_API_KEY` environment variable name typo
 - Fatal startup errors and a missing API key are now logged to stderr
 

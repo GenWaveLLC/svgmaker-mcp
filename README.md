@@ -382,6 +382,56 @@ Generate an SVG of a minimalist mountain landscape and save it to ./landscape.sv
 
 ## 🛠️ Available Tools
 
+### Image input and output by transport
+
+`svgmaker_edit`, `svgmaker_convert` and `svgmaker_remove_background` take their image from a single `input` parameter. What `input` may contain depends on how the server is running.
+
+| `input` value | stdio (local server) | HTTPS (`mcp.svgmaker.io`) |
+|---------------|----------------------|---------------------------|
+| `/Users/me/panda.png`, `file:///Users/me/panda.png` | ✅ read from disk | ❌ the server is in the cloud and cannot see your disk — call `svgmaker_upload` first |
+| `https://example.com/logo.png` | ✅ | ✅ |
+| `gen_abc123` (generation or gallery id) | ✅ `svgmaker_edit` and `svgmaker_remove_background` only | ✅ same |
+
+`svgmaker_convert` does not accept generation ids: the API would vectorize a downscaled preview of an SVG you already own, so the result is strictly worse than what you started with. Convert takes a file path or an `https://` URL.
+
+For a URL the MCP server never downloads the image — it hands the URL to the SVGMaker API, which fetches it. A generation id is passed through as-is and resolved server-side.
+
+Output follows the same split:
+
+| | stdio | HTTPS |
+|---|---|---|
+| `output_path` given | ✅ file written to that path | ❌ rejected — the cloud server has no access to your disk |
+| `output_path` omitted | hosted SVGMaker URL returned | hosted SVGMaker URL returned |
+
+`input_path` is still accepted on all three tools as an alias for `input`, and `generation_id` on `svgmaker_edit` and `svgmaker_remove_background`, so existing configurations keep working. Supply exactly one source.
+
+### svgmaker_upload
+
+**HTTPS transport only** — it does not appear in the tool list over stdio, where local paths already work directly.
+
+Mints a pair of signed URLs so a local file can be used with the cloud server. No bytes pass through the MCP server; your agent performs the upload itself.
+
+```json
+{
+  "filename": "panda.png",
+  "size": 482113
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `filename` | string | Required. Name including extension — the image type is inferred from it. The stored object name is generated server-side. |
+| `size` | number | Required. File size in bytes. Files over 25 MB are rejected. |
+| `content_type` | string | Optional MIME type override, e.g. `image/png`. Only needed when the filename has no extension or a misleading one. |
+
+The response returns `put_url`, `file_url` and the resolved `content_type`. Upload the bytes, then pass `file_url` as `input`:
+
+```bash
+curl -X PUT -H "Content-Type: image/png" --upload-file /Users/me/panda.png "<put_url>"
+```
+
+Send the `Content-Type` returned in the response, not a guess — that value is bound into the signature, and a mismatch fails with an opaque GCS `SignatureDoesNotMatch` error. The `put_url` expires after an hour; uploaded objects are private and swept after 24 hours.
+
 ### svgmaker_generate
 
 Generate SVG images from text prompts. Supports style parameters for fine-grained control over the output.
@@ -431,11 +481,11 @@ All parameters below are optional and shared by `svgmaker_generate` and `svgmake
 
 ### svgmaker_edit
 
-Edit existing SVGs or images with natural language. Supports the same style parameters as generate. Accepts a local file path or generation ID (works for both your own generations and public gallery items).
+Edit existing SVGs or images with natural language. Supports the same style parameters as generate. `input` accepts a local file path, an `https://` URL, or a generation ID (works for both your own generations and public gallery items) — see the [input matrix](#image-input-and-output-by-transport).
 
 ```json
 {
-  "input_path": "/path/to/input.svg",
+  "input": "/path/to/input.svg",
   "prompt": "Add a gradient background and make it more vibrant",
   "output_path": "/path/to/enhanced.svg",
   "quality": "high",
@@ -444,12 +494,11 @@ Edit existing SVGs or images with natural language. Supports the same style para
 }
 ```
 
-Or edit directly from a generation ID (works for both generations and gallery items):
+Or edit directly from a generation ID or a URL:
 ```json
 {
-  "generation_id": "gen_abc123",
-  "prompt": "Make the background blue",
-  "output_path": "/path/to/edited.svg"
+  "input": "gen_abc123",
+  "prompt": "Make the background blue"
 }
 ```
 
@@ -457,7 +506,7 @@ Or edit directly from a generation ID (works for both generations and gallery it
 
 ```json
 {
-  "input_path": "/path/to/input.svg",
+  "input": "/path/to/input.svg",
   "prompt": "Make it more vibrant",
   "output_path": "/path/to/edited.png",
   "raster": true
@@ -466,29 +515,46 @@ Or edit directly from a generation ID (works for both generations and gallery it
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| `input` | string | Image source: local file path (stdio only), `https://` URL, or generation ID. Required. |
+| `input_path` | string | Accepted alias for `input`, restricted to a local file path. |
+| `generation_id` | string | Accepted alias for `input`, restricted to a generation or gallery ID. |
 | `raster` | boolean | When true, returns a raster PNG instead of SVG (skips vectorization). Use a `.png` output path. Cannot be used with `storage`. |
 | `storage` | boolean | When true, stores the edited image permanently in cloud storage. Cannot be used with `raster`. Defaults to true when `raster` is not set. |
 
 ### svgmaker_convert
 
-Convert raster images to SVG using AI-powered vectorization.
+Convert raster images to SVG using AI-powered vectorization. `input` accepts a local file path or an `https://` URL — see the [input matrix](#image-input-and-output-by-transport). Generation ids are rejected, because converting one would re-vectorize a downscaled preview of an SVG you already have.
 
 ```json
 {
-  "input_path": "/path/to/image.png",
+  "input": "/path/to/image.png",
   "output_path": "/path/to/vector.svg"
 }
 ```
 
+Omit `output_path` to get a hosted URL instead of writing to disk:
+
+```json
+{
+  "input": "https://example.com/logo.png"
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | string | Image source: local file path (stdio only) or `https://` URL. Generation IDs are not accepted. Required. |
+| `input_path` | string | Accepted alias for `input`, restricted to a local file path. |
+| `output_path` | string | Optional. Absolute path (must end in `.svg`) to save the result. When omitted, a hosted URL is returned instead. |
+
 ### svgmaker_remove_background
 
-Remove the background from an image and get the result as a clean SVG with transparency. The AI isolates the foreground subject, removes the background, and vectorizes the result. Accepts raster formats (PNG, JPEG, WebP, GIF, TIFF, AVIF) and SVG.
+Remove the background from an image and get the result as a clean SVG with transparency. The AI isolates the foreground subject, removes the background, and vectorizes the result. Accepts raster formats (PNG, JPEG, WebP, GIF, TIFF, AVIF) and SVG. `input` accepts a local file path, an `https://` URL, or a generation ID — see the [input matrix](#image-input-and-output-by-transport).
 
 Provide an `output_path` (with a `.svg` extension) to save the SVG locally:
 
 ```json
 {
-  "input_path": "/path/to/photo.png",
+  "input": "/path/to/photo.png",
   "output_path": "/path/to/cutout.svg"
 }
 ```
@@ -497,13 +563,15 @@ Omit `output_path` to get a SVGMaker-hosted URL instead of writing to disk (clou
 
 ```json
 {
-  "input_path": "/path/to/photo.png"
+  "input": "gen_abc123"
 }
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `input_path` | string | Absolute path to the image to process. Required. |
+| `input` | string | Image source: local file path (stdio only), `https://` URL, or generation ID. Required. |
+| `input_path` | string | Accepted alias for `input`, restricted to a local file path. |
+| `generation_id` | string | Accepted alias for `input`, restricted to a generation or gallery ID. |
 | `output_path` | string | Optional. Absolute path (must end in `.svg`) to save the result. When omitted, a hosted URL is returned instead. |
 | `storage` | boolean | When true, stores the resulting SVG permanently in cloud storage (appears in your generations). When false, a temporary hosted URL is returned. Defaults to true. |
 
@@ -646,13 +714,18 @@ Preview a gallery item by returning the image directly in the chat context as a 
 
 ### svgmaker_preview
 
-Preview a local image file by returning it directly in the chat context. Supports PNG, SVG, WebP, and SVGZ formats.
+Preview a local image file by returning it directly in the chat context. Supports PNG, SVG, WebP, and SVGZ formats. Local files are only readable over the stdio transport.
 
 ```json
 {
-  "file_path": "/path/to/image.svg"
+  "input": "/path/to/image.svg"
 }
 ```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `input` | string | Absolute path to the local image file. Required. |
+| `file_path` | string | Accepted alias for `input`. Supply exactly one of the two. |
 
 ## ⚙️ Configuration
 

@@ -3,6 +3,7 @@ import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import { logToFile } from '../utils/logUtils.js';
 
@@ -20,7 +21,8 @@ export const accountInfoToolDefinition = {
 export async function handleAccountInfoTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG ACCOUNT INFO TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -81,7 +83,8 @@ export const accountUsageToolDefinition = {
 export async function handleAccountUsageTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG ACCOUNT USAGE TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);

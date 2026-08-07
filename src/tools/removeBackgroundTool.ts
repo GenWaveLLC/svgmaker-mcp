@@ -3,18 +3,34 @@ import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult } from '../utils/outputUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  applyImageInput,
+  INPUT_PARAM_DESCRIPTION,
+  resolveImageInput,
+  selectImageSource,
+} from '../utils/inputResolver.js';
 
 const RemoveBackgroundToolInputSchema = z.object({
+  input: z.string().min(1, 'Input cannot be empty.').optional().describe(INPUT_PARAM_DESCRIPTION),
   input_path: z
     .string()
     .min(1, 'Input path cannot be empty.')
+    .optional()
     .describe(
-      'Absolute path to the existing image file to remove the background from. Supports raster formats (PNG, JPEG, WebP, GIF, TIFF, AVIF) and SVG. Example: "/Users/username/Pictures/photo.png"'
+      'Deprecated alias for `input`, restricted to a local absolute file path. Prefer `input`.'
+    ),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID cannot be empty.')
+    .optional()
+    .describe(
+      'Deprecated alias for `input`, restricted to an SVGMaker generation or gallery id. Prefer `input`.'
     ),
   output_path: z
     .string()
@@ -34,14 +50,15 @@ const RemoveBackgroundToolInputSchema = z.object({
 export const removeBackgroundToolDefinition = {
   name: 'svgmaker_remove_background',
   description:
-    'Removes the background from an image and returns the result as a clean SVG with transparency, using the SVGMaker API. The AI isolates the foreground subject, removes the background, and vectorizes the result. Saves the SVG to a specified local path, or returns a hosted URL when no path is given.',
+    'Removes the background from an image and returns the result as a clean SVG with transparency, using the SVGMaker API. The AI isolates the foreground subject, removes the background, and vectorizes the result. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, or a generation id. Saves the SVG to output_path when given, otherwise returns a hosted URL.',
   inputSchema: zodToJsonSchema(RemoveBackgroundToolInputSchema),
 };
 
 export async function handleRemoveBackgroundTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   const { arguments: args } = request.params;
 
@@ -53,20 +70,16 @@ export async function handleRemoveBackgroundTool(
   try {
     const validatedArgs = RemoveBackgroundToolInputSchema.parse(args);
 
-    // Note: In a real implementation, we'd need to get roots from the client
-    // For now, we'll use a simple path validation
-    const clientRoots: any[] = []; // server.getRoots() is not available in this SDK version
-    const validatedInputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.input_path,
-      clientRoots,
-      'read'
-    );
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
+
+    const imageSource = selectImageSource(validatedArgs);
+
     const validatedOutputPath = validatedArgs.output_path
-      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, clientRoots, 'write')
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, 'write')
       : undefined;
 
-    // Read the input file
-    const inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
+    const resolvedInput = await resolveImageInput(imageSource, ctx);
 
     const progressManager = new ProgressManager({
       server,
@@ -86,9 +99,10 @@ export async function handleRemoveBackgroundTool(
 
     try {
       const sdkParams: Record<string, any> = {
-        file: inputImage,
         svgText: true,
       };
+
+      applyImageInput(sdkParams, resolvedInput, 'file');
 
       if (validatedArgs.storage !== undefined) {
         sdkParams.storage = validatedArgs.storage;

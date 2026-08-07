@@ -4,11 +4,12 @@ import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sd
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildUrlResult } from '../utils/outputUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
 
 // ── Gallery List Tool ──
 
@@ -36,7 +37,8 @@ export const galleryListToolDefinition = {
 export async function handleGalleryListTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -105,7 +107,8 @@ export const galleryGetToolDefinition = {
 export async function handleGalleryGetTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY GET TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -174,7 +177,8 @@ export const galleryDownloadToolDefinition = {
 export async function handleGalleryDownloadTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY DOWNLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -182,8 +186,11 @@ export async function handleGalleryDownloadTool(
   try {
     const validatedArgs = GalleryDownloadToolInputSchema.parse(request.params.arguments);
 
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
+
     const validatedOutputPath = validatedArgs.output_path
-      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, [], 'write')
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, 'write')
       : undefined;
 
     // Build SDK params with only defined fields
@@ -257,7 +264,8 @@ export const galleryPreviewToolDefinition = {
 export async function handleGalleryPreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);

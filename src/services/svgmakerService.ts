@@ -96,6 +96,15 @@ export async function removeBackground(
   return result;
 }
 
+export async function createUploadTicket(
+  params: SVGMakerTypes.UploadTicketParams,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.UploadTicketResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.upload.createTicket(params);
+}
+
 export async function getAccountInfo(
   client?: SVGMakerClient
 ): Promise<SVGMakerTypes.AccountResponse> {

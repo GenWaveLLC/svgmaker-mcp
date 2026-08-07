@@ -3,27 +3,35 @@ import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult } from '../utils/outputUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  applyImageInput,
+  INPUT_PARAM_DESCRIPTION,
+  resolveImageInput,
+  selectImageSource,
+} from '../utils/inputResolver.js';
 
 const EditToolInputSchema = z
   .object({
+    input: z.string().min(1, 'Input cannot be empty.').optional().describe(INPUT_PARAM_DESCRIPTION),
     input_path: z
       .string()
       .min(1, 'Input path cannot be empty.')
       .optional()
       .describe(
-        'Absolute path to the existing image/SVG file to be edited. Supports various formats including PNG, JPEG, SVG, and other common image types. Provide one of input_path or generation_id.'
+        'Deprecated alias for `input`, restricted to a local absolute file path. Prefer `input`.'
       ),
     generation_id: z
       .string()
       .min(1, 'Generation ID cannot be empty.')
       .optional()
       .describe(
-        'ID of an SVGMaker generation to edit. Works for both your own generations and public gallery items. The image will be fetched automatically. Provide one of input_path or generation_id.'
+        'Deprecated alias for `input`, restricted to an SVGMaker generation or gallery id. Prefer `input`.'
       ),
     prompt: z
       .string()
@@ -118,14 +126,15 @@ const EditToolInputSchema = z
 export const editToolDefinition = {
   name: 'svgmaker_edit',
   description:
-    'Edits an existing image/SVG file based on a text prompt using SVGMaker API and saves it to a specified local path. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
+    'Edits an existing image/SVG based on a text prompt using SVGMaker API. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, or a generation id. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
   inputSchema: zodToJsonSchema(EditToolInputSchema),
 };
 
 export async function handleEditTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
-  client?: SVGMakerClient
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   const { arguments: args } = request.params;
 
@@ -137,57 +146,20 @@ export async function handleEditTool(
   try {
     const validatedArgs = EditToolInputSchema.parse(args);
 
-    const providedSources = [validatedArgs.input_path, validatedArgs.generation_id].filter(Boolean);
-    if (providedSources.length === 0) {
-      throw new Error('One of input_path or generation_id must be provided.');
-    }
-    if (providedSources.length > 1) {
-      throw new Error('Provide only one of input_path or generation_id.');
-    }
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
 
-    const clientRoots: any[] = [];
+    const imageSource = selectImageSource(validatedArgs);
+
     let validatedOutputPath: string | undefined;
     if (validatedArgs.output_path) {
       validatedOutputPath = await fileUtils.resolveAndValidatePath(
         validatedArgs.output_path,
-        clientRoots,
         'write'
       );
     }
 
-    let inputImage: Buffer;
-    if (validatedArgs.generation_id) {
-      let downloadResult;
-      try {
-        downloadResult = await svgmakerService.downloadGeneration(
-          validatedArgs.generation_id,
-          {
-            format: 'png',
-          },
-          client
-        );
-      } catch {
-        downloadResult = await svgmakerService.downloadGalleryItem(
-          validatedArgs.generation_id,
-          {
-            format: 'png',
-          },
-          client
-        );
-      }
-      const response = await fetch(downloadResult.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: HTTP ${response.status}`);
-      }
-      inputImage = Buffer.from(await response.arrayBuffer());
-    } else {
-      const validatedInputPath = await fileUtils.resolveAndValidatePath(
-        validatedArgs.input_path!,
-        clientRoots,
-        'read'
-      );
-      inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
-    }
+    const resolvedInput = await resolveImageInput(imageSource, ctx);
 
     // Determine aspect ratio based on quality and explicit aspectRatio
     let finalAspectRatio = validatedArgs.aspectRatio;
@@ -226,13 +198,14 @@ export async function handleEditTool(
       if (validatedArgs.text_style) styleParams.text = validatedArgs.text_style;
 
       const sdkParams: Record<string, any> = {
-        image: inputImage,
         prompt: validatedArgs.prompt,
         quality: validatedArgs.quality,
         aspectRatio: finalAspectRatio,
         background: validatedArgs.background,
         svgText: !validatedArgs.raster,
       };
+
+      applyImageInput(sdkParams, resolvedInput, 'image');
 
       if (validatedArgs.raster) {
         sdkParams.raster = true;

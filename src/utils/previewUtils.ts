@@ -11,7 +11,7 @@ export async function fetchRemotePreview(downloadUrl: string): Promise<string> {
 }
 
 export async function readLocalPreview(filePath: string): Promise<string> {
-  const validatedPath = await fileUtils.resolveAndValidatePath(filePath, [], 'read');
+  const validatedPath = await fileUtils.resolveAndValidatePath(filePath, 'read');
   const fileBuffer = await fileUtils.readFileToBuffer(validatedPath);
   const ext = validatedPath.split('.').pop()?.toLowerCase();
 
