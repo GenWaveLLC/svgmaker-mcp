@@ -126,7 +126,7 @@ const EditToolInputSchema = z
 export const editToolDefinition = {
   name: 'svgmaker_edit',
   description:
-    'Edits an existing image/SVG based on a text prompt using SVGMaker API. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, or a generation id. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
+    'Edits an existing image/SVG based on a text prompt using SVGMaker API. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, an upl_ upload id, or a generation id. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
   inputSchema: zodToJsonSchema(EditToolInputSchema),
 };
 

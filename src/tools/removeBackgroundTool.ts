@@ -50,7 +50,7 @@ const RemoveBackgroundToolInputSchema = z.object({
 export const removeBackgroundToolDefinition = {
   name: 'svgmaker_remove_background',
   description:
-    'Removes the background from an image and returns the result as a clean SVG with transparency, using the SVGMaker API. The AI isolates the foreground subject, removes the background, and vectorizes the result. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, or a generation id. Saves the SVG to output_path when given, otherwise returns a hosted URL.',
+    'Removes the background from an image and returns the result as a clean SVG with transparency, using the SVGMaker API. The AI isolates the foreground subject, removes the background, and vectorizes the result. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, an upl_ upload id, or a generation id. Saves the SVG to output_path when given, otherwise returns a hosted URL.',
   inputSchema: zodToJsonSchema(RemoveBackgroundToolInputSchema),
 };
 

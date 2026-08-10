@@ -66,6 +66,7 @@ describe('classifyInput', () => {
     expect(classifyInput('file:///Users/me/panda.png')).toBe('path');
     expect(classifyInput('./panda.png')).toBe('path');
     expect(classifyInput('https://example.com/logo.png')).toBe('url');
+    expect(classifyInput('upl_abc123')).toBe('upload');
     expect(classifyInput('gen_abc123')).toBe('generation');
   });
 });
@@ -127,6 +128,15 @@ describe('resolveImageInput', () => {
     }
     expect(svgmakerService.downloadGeneration).not.toHaveBeenCalled();
     expect(svgmakerService.downloadGalleryItem).not.toHaveBeenCalled();
+  });
+
+  it('passes an upload id through on both transports', async () => {
+    for (const ctx of [STDIO, HTTP]) {
+      expect(await resolveImageInput({ value: 'upl_abc123' }, ctx)).toEqual({
+        kind: 'upload',
+        uploadId: 'upl_abc123',
+      });
+    }
   });
 
   it('rejects a generation id when the caller opts out', async () => {
@@ -212,6 +222,29 @@ describe.each([EDIT_CASE, CONVERT_CASE, REMOVE_BG_CASE])('%s input handling', (n
 
     expect(readSpy).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes an upl_ id through as uploadId without reading the filesystem', async () => {
+    const readSpy = vi.spyOn(fs, 'readFile');
+
+    for (const ctx of [STDIO, HTTP]) {
+      vi.mocked(getMock()).mockClear();
+      const result = await handler(
+        server,
+        call(name, { ...extraArgs, input: 'upl_abc123' }),
+        undefined,
+        ctx
+      );
+
+      expect(result.isError).toBeUndefined();
+      const params = vi.mocked(getMock()).mock.calls[0][0] as any;
+      expect(params.uploadId).toBe('upl_abc123');
+      expect(params.generationId).toBeUndefined();
+      expect(params.imageUrl).toBeUndefined();
+      expect(params[fileField]).toBeUndefined();
+    }
+
+    expect(readSpy).not.toHaveBeenCalled();
   });
 
   it('still accepts the input_path alias', async () => {

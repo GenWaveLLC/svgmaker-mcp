@@ -4,7 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Server as McpServer } from '@modelcontextprotocol/sdk/server/index.js';
 
 vi.mock('../src/services/svgmakerService.js', () => ({
-  createUploadTicket: vi.fn(),
+  prepareUpload: vi.fn(),
 }));
 
 import * as svgmakerService from '../src/services/svgmakerService.js';
@@ -40,7 +40,7 @@ describe('svgmaker_upload registration', () => {
     await expect(
       client.callTool({
         name: 'svgmaker_upload',
-        arguments: { filename: 'panda.png', size: 1 },
+        arguments: { filename: 'panda.png' },
       })
     ).rejects.toThrow(/only available over the HTTPS transport/);
 
@@ -48,11 +48,11 @@ describe('svgmaker_upload registration', () => {
   });
 });
 
-function mockTicket(contentType: string) {
-  vi.mocked(svgmakerService.createUploadTicket).mockResolvedValue({
-    putUrl: 'https://storage.googleapis.com/put?sig=1',
-    fileUrl: 'https://storage.googleapis.com/read?sig=2',
-    contentType,
+function mockPreparedUpload() {
+  vi.mocked(svgmakerService.prepareUpload).mockResolvedValue({
+    uploadUrl: 'https://api.svgmaker.io/v1/upload/temporary-token',
+    expiresIn: 300,
+    metadata: {},
   } as any);
 }
 
@@ -66,48 +66,44 @@ function callUpload(args: Record<string, unknown>) {
 }
 
 describe('svgmaker_upload handler', () => {
-  it('returns both URLs and the Content-Type instruction', async () => {
-    mockTicket('image/png');
+  it('returns the temporary URL, expiry, and multipart curl instruction', async () => {
+    mockPreparedUpload();
 
-    const result = await callUpload({ filename: 'panda.png', size: 482113 });
+    const result = await callUpload({ filename: 'panda.png' });
 
     expect(result.isError).toBeUndefined();
     const text = result.content[0].text as string;
-    expect(text).toContain('https://storage.googleapis.com/put?sig=1');
-    expect(text).toContain('https://storage.googleapis.com/read?sig=2');
-    expect(text).toContain('Content-Type: image/png');
-    expect(text).toContain('input');
-    expect(svgmakerService.createUploadTicket).toHaveBeenCalledWith(
-      { filename: 'panda.png', size: 482113, contentType: undefined },
+    expect(text).toContain('upload_url: https://api.svgmaker.io/v1/upload/temporary-token');
+    expect(text).toContain('expires_in: 300');
+    expect(text).toContain('curl -X POST -F "file=@<local file>" "<upload_url>"');
+    expect(text).toContain('data.upload_id');
+    expect(text).toContain('input set to that upload id');
+    expect(svgmakerService.prepareUpload).toHaveBeenCalledWith(
+      { filename: 'panda.png' },
       undefined
     );
   });
 
-  // The curl instruction has to echo the server's type, not the caller's guess —
-  // a mismatch is an opaque GCS SignatureDoesNotMatch.
-  it('prints the resolved Content-Type rather than the requested one', async () => {
-    mockTicket('image/jpeg');
+  it('exposes only filename in the input schema', async () => {
+    const server = createMcpServer(undefined, { transport: 'http' });
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
-    const result = await callUpload({ filename: 'panda.jpg', size: 10 });
-
-    expect(result.content[0].text as string).toContain('Content-Type: image/jpeg');
-  });
-
-  it('forwards an explicit content_type override', async () => {
-    mockTicket('image/png');
-
-    await callUpload({ filename: 'blob', size: 10, content_type: 'image/png' });
-
-    expect(svgmakerService.createUploadTicket).toHaveBeenCalledWith(
-      { filename: 'blob', size: 10, contentType: 'image/png' },
-      undefined
+    const { tools } = await client.listTools();
+    const upload = tools.find((tool) => tool.name === 'svgmaker_upload');
+    expect(upload?.inputSchema.properties).toEqual(
+      expect.objectContaining({ filename: expect.any(Object) })
     );
+    expect(upload?.inputSchema.properties).not.toHaveProperty('size');
+    expect(upload?.inputSchema.properties).not.toHaveProperty('content_type');
+    await client.close();
   });
 
   it('rejects a call with no filename', async () => {
-    mockTicket('image/png');
+    mockPreparedUpload();
 
-    const result = await callUpload({ size: 10 });
+    const result = await callUpload({});
 
     expect(result.isError).toBe(true);
   });

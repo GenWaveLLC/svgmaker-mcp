@@ -4,21 +4,21 @@ import type { ToolContext } from '../types/toolContext.js';
 import * as fileUtils from './fileUtils.js';
 
 export const HTTP_LOCAL_PATH_ERROR =
-  'Local file paths are not supported over the HTTPS transport. Pass an https:// URL or a generation_id, or call svgmaker_upload to get an upload link for this file.';
+  'Local file paths are not supported over the HTTPS transport. Pass an https:// URL, generation id, or upload id. For a local file, call svgmaker_upload and upload it first.';
 
 export const MISSING_INPUT_ERROR =
-  'An image source is required: provide "input" as a local file path (stdio only), an https:// URL, or a generation id.';
+  'An image source is required: provide "input" as a local file path (stdio only), an https:// URL, an upload id, or a generation id.';
 
 export const GENERATION_ID_UNSUPPORTED_ERROR =
-  'Generation ids are not supported for convert, because it would re-vectorize a downscaled preview. Pass a local file path (stdio only) or an https:// URL.';
+  'Generation ids are not supported for convert, because it would re-vectorize a downscaled preview. Pass a local file path (stdio only), an https:// URL, or an upl_ upload id.';
 
 export const INPUT_PARAM_DESCRIPTION =
-  'Image source. Accepts a local absolute file path (stdio transport only), an https:// URL, or an SVGMaker generation id (your own generations or public gallery items). Over the HTTPS transport use a URL or generation id — call svgmaker_upload first to get a URL for a local file.';
+  'Image source. Accepts a local absolute file path (stdio transport only), an https:// URL, an upl_ upload id returned after uploading a local file, or an SVGMaker generation id (your own generations or public gallery items). Over HTTPS, call svgmaker_upload first for a local file.';
 
 export const NO_GENERATION_INPUT_PARAM_DESCRIPTION =
-  'Image source. Accepts a local absolute file path (stdio transport only) or an https:// URL. Generation ids are not accepted. Over the HTTPS transport use a URL — call svgmaker_upload first to get a URL for a local file.';
+  'Image source. Accepts a local absolute file path (stdio transport only), an https:// URL, or an upl_ upload id returned after uploading a local file. Generation ids are not accepted. Over HTTPS, call svgmaker_upload first for a local file.';
 
-export type InputKind = 'path' | 'url' | 'generation';
+export type InputKind = 'path' | 'url' | 'upload' | 'generation';
 
 export interface ImageSource {
   value: string;
@@ -29,6 +29,7 @@ export interface ImageSource {
 export type ResolvedImageInput =
   | { kind: 'path'; buffer: Buffer }
   | { kind: 'url'; imageUrl: string }
+  | { kind: 'upload'; uploadId: string }
   | { kind: 'generation'; generationId: string };
 
 export interface ResolveImageInputOptions {
@@ -69,13 +70,16 @@ export function classifyInput(value: string): InputKind {
   if (/^file:\/\//i.test(value)) return 'path';
   if (/^https?:\/\//i.test(value)) return 'url';
   if (path.isAbsolute(value) || /^[.~]/.test(value)) return 'path';
+  // Case sensitive: the API only ever mints lowercase upl_ ids, and an
+  // uppercase variant classified here would 404 instead of failing clearly.
+  if (value.startsWith('upl_')) return 'upload';
   return 'generation';
 }
 
 /**
- * Resolve an image source to something the SDK can send. A URL or generation id is
- * passed through untouched — the API resolves it, so no image bytes ever transit
- * this server.
+ * Resolve an image source to something the SDK can send. A URL, upload id, or
+ * generation id is passed through untouched — the API resolves it, so no image
+ * bytes ever transit this server.
  */
 export async function resolveImageInput(
   source: ImageSource,
@@ -86,6 +90,10 @@ export async function resolveImageInput(
 
   if (kind === 'url') {
     return { kind: 'url', imageUrl: source.value };
+  }
+
+  if (kind === 'upload') {
+    return { kind: 'upload', uploadId: source.value };
   }
 
   if (kind === 'generation') {
@@ -114,6 +122,8 @@ export function applyImageInput(
     sdkParams[fileField] = resolved.buffer;
   } else if (resolved.kind === 'url') {
     sdkParams.imageUrl = resolved.imageUrl;
+  } else if (resolved.kind === 'upload') {
+    sdkParams.uploadId = resolved.uploadId;
   } else {
     sdkParams.generationId = resolved.generationId;
   }

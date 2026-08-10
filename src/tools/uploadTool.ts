@@ -12,26 +12,14 @@ const UploadToolInputSchema = z.object({
     .string()
     .min(1, 'Filename cannot be empty.')
     .describe(
-      'Name of the file you are about to upload, including its extension, e.g. "logo.png". The extension determines the image type. The stored object name is generated server-side.'
-    ),
-  size: z
-    .number()
-    .int()
-    .positive()
-    .describe('Size of the file in bytes. Files larger than 25 MB are rejected.'),
-  content_type: z
-    .string()
-    .min(1, 'Content type cannot be empty.')
-    .optional()
-    .describe(
-      'Optional MIME type override, e.g. "image/png". Only needed when the filename has no extension or a misleading one — otherwise leave it out and it is inferred.'
+      'Name of the local file you are about to upload, including its extension, e.g. "logo.png".'
     ),
 });
 
 export const uploadToolDefinition = {
   name: 'svgmaker_upload',
   description:
-    'Mints a signed upload link so a local file can be used with svgmaker_edit, svgmaker_convert or svgmaker_remove_background over the HTTPS transport. Returns a put_url to upload the file bytes to and a file_url to pass back as `input`. No bytes pass through this server — you perform the upload yourself.',
+    'Prepares a short-lived upload URL so a local file can be used with svgmaker_edit, svgmaker_convert or svgmaker_remove_background over HTTPS. Upload the file with the returned curl command; its response contains the upload id to use as `input`.',
   inputSchema: zodToJsonSchema(UploadToolInputSchema),
 };
 
@@ -41,18 +29,14 @@ export async function handleUploadTool(
   client?: SVGMakerClient,
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
-  logToFile('========== SVG UPLOAD TICKET TOOL CALLED ==========');
+  logToFile('========== SVG UPLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = UploadToolInputSchema.parse(request.params.arguments);
 
-    const ticket = await svgmakerService.createUploadTicket(
-      {
-        filename: validatedArgs.filename,
-        size: validatedArgs.size,
-        contentType: validatedArgs.content_type,
-      },
+    const preparedUpload = await svgmakerService.prepareUpload(
+      { filename: validatedArgs.filename },
       client
     );
 
@@ -61,14 +45,15 @@ export async function handleUploadTool(
         {
           type: 'text',
           text: [
-            'Upload link created.',
-            `put_url: ${ticket.putUrl}`,
-            `file_url: ${ticket.fileUrl}`,
+            'Temporary upload URL created.',
+            `upload_url: ${preparedUpload.uploadUrl}`,
+            `expires_in: ${preparedUpload.expiresIn} seconds`,
             '',
             'Next steps:',
-            `1. PUT the file bytes to put_url. Send the Content-Type header exactly as shown — it is bound into the signature, and any other value fails with an opaque GCS SignatureDoesNotMatch error:`,
-            `   curl -X PUT -H "Content-Type: ${ticket.contentType}" --upload-file <local file> "<put_url>"`,
-            '2. Call svgmaker_edit, svgmaker_convert or svgmaker_remove_background with input set to file_url.',
+            `1. Upload the local file before this URL expires:`,
+            '   curl -X POST -F "file=@<local file>" "<upload_url>"',
+            '2. Read data.upload_id from the JSON response, e.g. "upl_2f1c8a4e-6b3d-4c9a-8e7f-0a1b2c3d4e5f".',
+            '3. Call svgmaker_edit, svgmaker_convert or svgmaker_remove_background with input set to that upload id.',
           ].join('\n'),
         } as TextContent,
       ],
@@ -79,7 +64,7 @@ export async function handleUploadTool(
       content: [
         {
           type: 'text',
-          text: `Error creating upload link: ${error.message}`,
+          text: `Error preparing upload: ${error.message}`,
         } as TextContent,
       ],
     };

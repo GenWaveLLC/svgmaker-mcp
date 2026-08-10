@@ -12,10 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OAuth 2.0 protected-resource support for the HTTP transport: browser login via bearer tokens, verified locally against the auth server's JWKS
 - `svgmaker_remove_background` tool
 - Generate and edit return a hosted URL when `output_path` is omitted
-- Unified `input` parameter on `svgmaker_edit`, `svgmaker_convert` and `svgmaker_remove_background`, accepting a local file path (stdio) or an `https://` URL, plus a generation/gallery id on edit and remove-background. `input_path` remains an accepted alias everywhere, `generation_id` on edit and remove-background
+- Unified `input` parameter on `svgmaker_edit`, `svgmaker_convert` and `svgmaker_remove_background`, accepting a local file path (stdio), an `https://` URL or an `upl_` upload id, plus a generation/gallery id on edit and remove-background. `input_path` remains an accepted alias everywhere, `generation_id` on edit and remove-background
 - `svgmaker_convert` now accepts URLs, and `svgmaker_remove_background` accepts URLs and generation ids, which they never supported before
 - `svgmaker_preview` accepts `input` alongside the existing `file_path`
-- `svgmaker_upload` tool, registered only over the HTTPS transport, minting signed PUT and read URLs so a local file can be used with the cloud server. Image bytes never pass through the MCP server
+- `svgmaker_upload` tool, registered only over the HTTPS transport. It takes a filename and returns a five-minute upload URL; the client agent POSTs the file there and gets back an `upl_` id to pass as `input`. Image bytes never pass through the MCP server
 - Dockerfile, Cloud Run deploy script (`deploy.sh`), and `docs/RELEASE.md`
 
 ### Changed
