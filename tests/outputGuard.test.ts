@@ -14,7 +14,9 @@ import * as svgmakerService from '../src/services/svgmakerService.js';
 import { handleGenerateTool } from '../src/tools/generateTool.js';
 import { handleEditTool } from '../src/tools/editTool.js';
 import { handleGenerationsDownloadTool } from '../src/tools/generationsTool.js';
+import { handlePreviewTool } from '../src/tools/previewTool.js';
 import { HTTP_OUTPUT_PATH_ERROR } from '../src/utils/outputUtils.js';
+import { HTTP_LOCAL_PREVIEW_ERROR } from '../src/utils/previewUtils.js';
 
 const HTTP = { transport: 'http' } as const;
 const STDIO = { transport: 'stdio' } as const;
@@ -102,6 +104,35 @@ describe('output_path guard over the HTTPS transport', () => {
   });
 });
 
+describe('local preview guard over the HTTPS transport', () => {
+  it('rejects a local file path for svgmaker_preview', async () => {
+    const filePath = path.join(tmpDir, 'icon.svg');
+    await fs.writeFile(filePath, '<svg />');
+
+    const result = await handlePreviewTool(
+      server,
+      call('svgmaker_preview', { input: filePath }),
+      undefined,
+      HTTP
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain(HTTP_LOCAL_PREVIEW_ERROR);
+  });
+
+  it('rejects the file_path alias too', async () => {
+    const result = await handlePreviewTool(
+      server,
+      call('svgmaker_preview', { file_path: '/Users/me/Desktop/icon.svg' }),
+      undefined,
+      HTTP
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain(HTTP_LOCAL_PREVIEW_ERROR);
+  });
+});
+
 describe('output_path over the stdio transport', () => {
   it('writes the generated SVG to disk', async () => {
     vi.mocked(svgmakerService.generateSVG).mockResolvedValue({
@@ -141,6 +172,21 @@ describe('output_path over the stdio transport', () => {
 
     expect(result.isError).toBeUndefined();
     expect(await fs.readFile(outputPath, 'utf8')).toBe('<svg />');
+  });
+
+  it('previews a local file', async () => {
+    const filePath = path.join(tmpDir, 'icon.svg');
+    await fs.writeFile(filePath, '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" />');
+
+    const result = await handlePreviewTool(
+      server,
+      call('svgmaker_preview', { input: filePath }),
+      undefined,
+      STDIO
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].type).toBe('image');
   });
 
   it('defaults to stdio when no context is passed', async () => {

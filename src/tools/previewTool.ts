@@ -5,7 +5,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import { logToFile } from '../utils/logUtils.js';
-import { readLocalPreview } from '../utils/previewUtils.js';
+import { HTTP_LOCAL_PREVIEW_ERROR, readLocalPreview } from '../utils/previewUtils.js';
 
 const PreviewToolInputSchema = z
   .object({
@@ -37,13 +37,16 @@ export async function handlePreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   _client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = PreviewToolInputSchema.parse(request.params.arguments);
+    if (ctx.transport === 'http') {
+      throw new Error(HTTP_LOCAL_PREVIEW_ERROR);
+    }
     const base64Data = await readLocalPreview((validatedArgs.input ?? validatedArgs.file_path)!);
 
     return {
