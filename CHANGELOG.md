@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Minimum Node.js is now 20.9.0** (was 18.0.0), required by `sharp` 0.35
-- Upgraded `@genwave/svgmaker-sdk` to 1.2.0 and `@modelcontextprotocol/sdk` to 1.30.0
+- Upgraded `@genwave/svgmaker-sdk` to 1.3.0 and `@modelcontextprotocol/sdk` to 1.30.0
 - URL inputs are handed to the SVGMaker API as `imageUrl` rather than downloaded, so the server no longer buffers image bytes
 - Generation ids on `svgmaker_edit` and `svgmaker_remove_background` are passed straight through as `generationId` instead of being resolved to a download URL first. The API resolves them internally, which removes a redundant round trip, works for free accounts (the download endpoint is paid-only), and no longer depends on the proxy URL being https
 - `svgmaker_convert` no longer accepts a generation id and its `generation_id` parameter is gone. The API resolves a generation to a downscaled raster preview, so vectorizing one produced a strictly worse copy of an SVG the user already owned. A generation id passed as `input` is now rejected by the MCP server with an actionable message
