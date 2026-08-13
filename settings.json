@@ -7,7 +7,7 @@
   "MIN_INSTANCES": "0",
   "MAX_INSTANCES": "3",
   "CONCURRENCY": "80",
-  "TIMEOUT": "300",
+  "TIMEOUT": "600",
   "MCP_PUBLIC_URL": "https://mcp.svgmaker.io",
   "SVGMAKER_AUTH_SERVER_URL": "https://svgmaker.io"
 }
