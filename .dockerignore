@@ -1,0 +1,16 @@
+node_modules
+build
+.git
+.github
+docs
+public
+.env
+.env.*
+*.log
+firebase-debug.log
+npm-debug.log*
+.DS_Store
+.vscode
+.claude
+coverage
+*.md

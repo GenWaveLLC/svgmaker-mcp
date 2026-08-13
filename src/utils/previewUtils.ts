@@ -1,6 +1,9 @@
 import sharp from 'sharp';
 import * as fileUtils from './fileUtils.js';
 
+export const HTTP_LOCAL_PREVIEW_ERROR =
+  'Local file paths are not readable over the HTTPS transport. To see an image, call svgmaker_generations_preview with one of your generation ids, or svgmaker_gallery_preview with a gallery item id. Get an id from svgmaker_generations_list or svgmaker_gallery_list, or from the generate/edit/convert result.';
+
 export async function fetchRemotePreview(downloadUrl: string): Promise<string> {
   const response = await fetch(downloadUrl);
   if (!response.ok) {
@@ -11,7 +14,7 @@ export async function fetchRemotePreview(downloadUrl: string): Promise<string> {
 }
 
 export async function readLocalPreview(filePath: string): Promise<string> {
-  const validatedPath = await fileUtils.resolveAndValidatePath(filePath, [], 'read');
+  const validatedPath = await fileUtils.resolveAndValidatePath(filePath, 'read');
   const fileBuffer = await fileUtils.readFileToBuffer(validatedPath);
   const ext = validatedPath.split('.').pop()?.toLowerCase();
 

@@ -2,36 +2,75 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  applyImageInput,
+  NO_GENERATION_INPUT_PARAM_DESCRIPTION,
+  NO_GENERATION_INPUT_PARAM_DESCRIPTION_HTTP,
+  resolveImageInput,
+  selectImageSource,
+} from '../utils/inputResolver.js';
 
 const ConvertToolInputSchema = z.object({
+  input: z
+    .string()
+    .min(1, 'Input cannot be empty.')
+    .optional()
+    .describe(NO_GENERATION_INPUT_PARAM_DESCRIPTION),
   input_path: z
     .string()
     .min(1, 'Input path cannot be empty.')
+    .optional()
     .describe(
-      'Absolute path to the existing image file to be converted to SVG format. Supports various bitmap formats including PNG, JPEG, GIF, BMP, TIFF, and WebP. Example: "/Users/username/Pictures/photo.jpg"'
+      'Deprecated alias for `input`, restricted to a local absolute file path. Prefer `input`.'
     ),
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
+    .optional()
     .describe(
-      'Absolute file path where the generated SVG will be saved. Must include the .svg extension. The resulting file will be a vector representation optimized for scalability. Example: "/Users/username/Documents/vector-art.svg"'
+      'Optional absolute file path to save the SVG locally. Must include the .svg extension. Example: "/Users/username/Documents/vector-art.svg". Omit it to get a hosted SVGMaker URL instead of a file.'
     ),
 });
 
-export const convertToolDefinition = {
-  name: 'svgmaker_convert',
-  description:
-    'Converts a raster image (PNG, JPEG, WebP, etc.) to SVG format using AI-powered vectorization via SVGMaker API. The AI analyzes the image and recreates it as clean, scalable vector graphics. Saves the result to a specified local path.',
-  inputSchema: zodToJsonSchema(ConvertToolInputSchema),
-};
+// input_path is local-path-only, so over HTTP it is dropped alongside output_path.
+const ConvertToolHttpSchema = ConvertToolInputSchema.omit({
+  output_path: true,
+  input_path: true,
+}).extend({
+  input: z
+    .string()
+    .min(1, 'Input cannot be empty.')
+    .optional()
+    .describe(NO_GENERATION_INPUT_PARAM_DESCRIPTION_HTTP),
+});
+
+const CONVERT_DESCRIPTION_STDIO =
+  'Convert a raster image (PNG, JPEG, WebP) to SVG by AI vectorization. Use this to trace an existing image as-is; use svgmaker_edit when the image should also be changed. The image comes from `input`, which accepts a local absolute file path, an https:// URL, or an upl_ upload id. Generation ids are not accepted — a generation is already an SVG. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
+
+const CONVERT_DESCRIPTION_HTTP =
+  'Convert a raster image (PNG, JPEG, WebP) to SVG by AI vectorization. Use this to trace an existing image as-is; use svgmaker_edit when the image should also be changed. The image comes from `input`, which accepts an https:// URL or an upl_ upload id from svgmaker_upload. Generation ids are not accepted — a generation is already an SVG. Returns a hosted SVGMaker URL for the vectorized file, plus its expiry. To save it locally, download that URL yourself before it expires.';
+
+export function buildConvertToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_convert',
+    description: isHttp ? CONVERT_DESCRIPTION_HTTP : CONVERT_DESCRIPTION_STDIO,
+    inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
+  };
+}
 
 export async function handleConvertTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   const { arguments: args } = request.params;
 
@@ -43,22 +82,16 @@ export async function handleConvertTool(
   try {
     const validatedArgs = ConvertToolInputSchema.parse(args);
 
-    // Note: In a real implementation, we'd need to get roots from the client
-    // For now, we'll use a simple path validation
-    const clientRoots: any[] = []; // server.getRoots() is not available in this SDK version
-    const validatedInputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.input_path,
-      clientRoots,
-      'read'
-    );
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      clientRoots,
-      'write'
-    );
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
 
-    // Read the input file
-    const inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
+    const imageSource = selectImageSource(validatedArgs);
+
+    const validatedOutputPath = validatedArgs.output_path
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, 'write')
+      : undefined;
+
+    const resolvedInput = await resolveImageInput(imageSource, ctx, { allowGenerationId: false });
 
     const progressManager = new ProgressManager({
       server,
@@ -77,10 +110,11 @@ export async function handleConvertTool(
     await progressManager.sendInitialProgress();
 
     try {
-      const sdkParams = {
-        file: inputImage,
+      const sdkParams: Record<string, any> = {
         svgText: true,
       };
+
+      applyImageInput(sdkParams, resolvedInput, 'file');
 
       // Update progress: preparing request
       await progressManager.sendPreparingProgress();
@@ -91,7 +125,7 @@ export async function handleConvertTool(
       let result;
       try {
         // The actual API call
-        result = await svgmakerService.convertImageToSVG(sdkParams as any);
+        result = await svgmakerService.convertImageToSVG(sdkParams as any, client);
       } finally {
         // Clean up the progress interval
         progressManager.stopProcessingProgress();
@@ -100,22 +134,39 @@ export async function handleConvertTool(
       // Update progress: processing complete
       await progressManager.sendSavingProgress();
 
-      if (result.svgText) {
-        await fileUtils.writeFile(validatedOutputPath, result.svgText);
+      if (validatedOutputPath) {
+        // Local/stdio mode: save SVG to disk.
+        if (result.svgText) {
+          await fileUtils.writeFile(validatedOutputPath, result.svgText);
+
+          // Send final progress
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Image converted to SVG successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else {
+          throw new Error('SVGMaker API did not return SVG content.');
+        }
+      } else {
+        // Cloud mode: return the SVGMaker-hosted URL, no disk writes.
+        if (!result.svgUrl) {
+          throw new Error('SVGMaker API did not return a hosted URL.');
+        }
 
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Image converted to SVG successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
-      } else {
-        throw new Error('SVGMaker API did not return SVG content.');
+        return buildUrlResult(
+          'Image converted to SVG successfully.',
+          result.svgUrl,
+          result.svgUrlExpiresIn
+        );
       }
     } catch (error: any) {
       // Ensure cleanup on error

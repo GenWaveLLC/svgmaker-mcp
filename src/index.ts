@@ -1,45 +1,10 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
 import { initializeSvgmakerService } from './services/svgmakerService.js';
 import { logSessionStart, logSessionEnd, logFatalError } from './utils/logUtils.js';
-import { generateToolDefinition, handleGenerateTool } from './tools/generateTool.js';
-import { editToolDefinition, handleEditTool } from './tools/editTool.js';
-import { convertToolDefinition, handleConvertTool } from './tools/convertTool.js';
-import {
-  accountInfoToolDefinition,
-  handleAccountInfoTool,
-  accountUsageToolDefinition,
-  handleAccountUsageTool,
-} from './tools/accountTool.js';
-import {
-  generationsListToolDefinition,
-  handleGenerationsListTool,
-  generationsGetToolDefinition,
-  handleGenerationsGetTool,
-  generationsDeleteToolDefinition,
-  handleGenerationsDeleteTool,
-  generationsShareToolDefinition,
-  handleGenerationsShareTool,
-  generationsDownloadToolDefinition,
-  handleGenerationsDownloadTool,
-  generationsPreviewToolDefinition,
-  handleGenerationsPreviewTool,
-} from './tools/generationsTool.js';
-import { previewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
-import {
-  galleryListToolDefinition,
-  handleGalleryListTool,
-  galleryGetToolDefinition,
-  handleGalleryGetTool,
-  galleryDownloadToolDefinition,
-  handleGalleryDownloadTool,
-  galleryPreviewToolDefinition,
-  handleGalleryPreviewTool,
-} from './tools/galleryTool.js';
+import { createMcpServer } from './server.js';
 
 // Load environment variables
 dotenv.config();
@@ -50,93 +15,19 @@ async function main() {
 
   const apiKey = process.env.SVGMAKER_API_KEY;
   if (!apiKey) {
+    console.error('SVGMaker MCP: SVGMAKER_API_KEY is not set. Exiting.');
     process.exit(1);
   }
 
-  // Initialize the MCP server
-  const server = new Server(
-    {
-      name: 'svgmaker-server',
-      version: '0.1.0',
-    },
-    {
-      capabilities: {
-        tools: {},
-      },
-    }
-  );
-
-  // Initialize SVGMaker Service
+  // Initialize SVGMaker Service (sets the global singleton used by stdio handlers)
   initializeSvgmakerService(
     apiKey,
-    process.env.SVGMMAKER_RATE_LIMIT_RPM,
+    process.env.SVGMAKER_RATE_LIMIT_RPM,
     process.env.SVGMAKER_BASE_URL || 'https://api.svgmaker.io'
   );
 
-  // Set up unified tool handlers
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        generateToolDefinition,
-        editToolDefinition,
-        convertToolDefinition,
-        accountInfoToolDefinition,
-        accountUsageToolDefinition,
-        generationsListToolDefinition,
-        generationsGetToolDefinition,
-        generationsDeleteToolDefinition,
-        generationsShareToolDefinition,
-        generationsDownloadToolDefinition,
-        generationsPreviewToolDefinition,
-        previewToolDefinition,
-        galleryListToolDefinition,
-        galleryGetToolDefinition,
-        galleryDownloadToolDefinition,
-        galleryPreviewToolDefinition,
-      ],
-    };
-  });
-
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name } = request.params;
-
-    switch (name) {
-      case 'svgmaker_generate':
-        return await handleGenerateTool(server, request);
-      case 'svgmaker_edit':
-        return await handleEditTool(server, request);
-      case 'svgmaker_convert':
-        return await handleConvertTool(server, request);
-      case 'svgmaker_account_info':
-        return await handleAccountInfoTool(server, request);
-      case 'svgmaker_account_usage':
-        return await handleAccountUsageTool(server, request);
-      case 'svgmaker_generations_list':
-        return await handleGenerationsListTool(server, request);
-      case 'svgmaker_generations_get':
-        return await handleGenerationsGetTool(server, request);
-      case 'svgmaker_generations_delete':
-        return await handleGenerationsDeleteTool(server, request);
-      case 'svgmaker_generations_share':
-        return await handleGenerationsShareTool(server, request);
-      case 'svgmaker_generations_download':
-        return await handleGenerationsDownloadTool(server, request);
-      case 'svgmaker_generations_preview':
-        return await handleGenerationsPreviewTool(server, request);
-      case 'svgmaker_preview':
-        return await handlePreviewTool(server, request);
-      case 'svgmaker_gallery_list':
-        return await handleGalleryListTool(server, request);
-      case 'svgmaker_gallery_get':
-        return await handleGalleryGetTool(server, request);
-      case 'svgmaker_gallery_download':
-        return await handleGalleryDownloadTool(server, request);
-      case 'svgmaker_gallery_preview':
-        return await handleGalleryPreviewTool(server, request);
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  });
+  // Create the MCP server. No client is passed, so handlers use the global singleton.
+  const server = createMcpServer(undefined, { transport: 'stdio' });
 
   // Connect to stdio transport
   const transport = new StdioServerTransport();
@@ -151,6 +42,9 @@ async function main() {
 }
 
 main().catch((error) => {
+  // stderr is safe with the stdio transport (only stdout carries MCP protocol),
+  // so surface fatal errors unconditionally for Claude Code's MCP logs.
+  console.error('SVGMaker MCP: fatal error during startup:', error);
   logFatalError(error);
   process.exit(1);
 });

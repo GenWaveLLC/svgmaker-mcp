@@ -8,8 +8,25 @@ Converts raster images to SVG format using AI-powered vectorization via the SVGM
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `input_path` | string | Yes | — | Absolute file path to the raster image file to convert |
-| `output_path` | string | Yes | — | Absolute file path where the SVG will be saved (must end with .svg) |
+| `input` | string | Yes* | — | Image source: a local absolute file path (stdio transport only) or an `https://` URL. See [Input sources](#input-sources) |
+| `input_path` | string | No* | — | Accepted alias for `input`, restricted to a local absolute file path |
+| `output_path` | string | No | — | Absolute file path where the SVG will be saved (must end with .svg). When omitted, a hosted URL is returned. Not supported over the HTTPS transport |
+
+\* Exactly one of `input` or `input_path` must be provided. `input` is preferred; `input_path` remains accepted for backwards compatibility.
+
+### Input sources
+
+| Value | stdio | HTTPS |
+|-------|-------|-------|
+| `/abs/path.png` or `file:///abs/path.png` | Read from disk and uploaded | Rejected — call `svgmaker_upload` first |
+| `https://…` | Fetched by the SVGMaker API | Fetched by the SVGMaker API |
+| `gen_abc123` | Rejected | Rejected |
+
+Unlike `svgmaker_edit` and `svgmaker_remove_background`, convert does not accept generation ids. The API resolves a generation to a downscaled raster preview, so vectorizing one produces a strictly worse version of an SVG you already own. The tool fails locally with:
+
+> Generation ids are not supported for convert, because it would re-vectorize a downscaled preview. Pass a local file path (stdio only) or an https:// URL.
+
+The MCP server never downloads image bytes for a URL — the URL is handed to the SVGMaker API, which fetches it.
 
 ## Progress Notifications
 
@@ -69,6 +86,7 @@ On error:
 ## Error Handling
 
 Common errors:
+- A generation id passed as `input` (not supported for convert)
 - Invalid or non-absolute input/output file paths
 - Unsupported input file formats
 - Missing file permissions

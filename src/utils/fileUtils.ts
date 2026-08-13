@@ -1,19 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Root } from '@modelcontextprotocol/sdk/types.js';
-
-// Helper to check if a child path is within a parent root URI
-// Currently not used, but will be needed for more robust root validation in future
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isPathWithinRoot(filePath: string, rootUri: string): boolean {
-  const rootPath = new URL(rootUri).pathname;
-  const relative = path.relative(rootPath, filePath);
-  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
-}
 
 export async function resolveAndValidatePath(
   rawPath: string,
-  clientRoots: Root[], // Roots from server.getRoots()
   accessType: 'read' | 'write'
 ): Promise<string> {
   const absolutePath = path.resolve(rawPath);

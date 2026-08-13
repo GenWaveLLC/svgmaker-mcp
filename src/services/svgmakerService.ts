@@ -2,11 +2,12 @@ import { SVGMakerClient, Types as SVGMakerTypes } from '@genwave/svgmaker-sdk';
 
 let svgMaker: SVGMakerClient;
 
-export function initializeSvgmakerService(
+export function createSvgmakerClient(
   apiKey: string,
   rateLimitRpmStr?: string,
-  baseUrl?: string
-) {
+  baseUrl?: string,
+  accessToken?: string
+): SVGMakerClient {
   const rateLimit = rateLimitRpmStr ? parseInt(rateLimitRpmStr, 10) : 2;
   const config: any = {
     logging: false, // Disable logging to prevent stdout pollution
@@ -21,104 +22,176 @@ export function initializeSvgmakerService(
     config.baseUrl = baseUrl;
   }
 
-  svgMaker = new SVGMakerClient(apiKey, config);
+  // OAuth Bearer mode (HTTP transport): when an access token is supplied we ask
+  // the SDK to send `Authorization: Bearer <accessToken>` instead of `x-api-key`,
+  // and pass an empty positional apiKey. The stdio path never sets this, so it
+  // keeps flowing the apiKey as `x-api-key` exactly as before.
+  if (accessToken) {
+    config.accessToken = accessToken;
+    return new SVGMakerClient('', config);
+  }
+
+  return new SVGMakerClient(apiKey, config);
+}
+
+export function initializeSvgmakerService(
+  apiKey: string,
+  rateLimitRpmStr?: string,
+  baseUrl?: string
+) {
+  svgMaker = createSvgmakerClient(apiKey, rateLimitRpmStr, baseUrl);
 }
 
 export async function generateSVG(
-  params: SVGMakerTypes.GenerateParams
+  params: SVGMakerTypes.GenerateParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GenerateResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
   const configuredParams = {
     ...params,
     svgText: !params.raster,
     storage: params.raster ? false : (params.storage ?? true),
   };
-  const result = await svgMaker.generate.configure(configuredParams).execute();
+  const result = await c.generate.configure(configuredParams).execute();
   return result;
 }
 
 export async function editSVG(
-  params: SVGMakerTypes.EditParams
+  params: SVGMakerTypes.EditParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.EditResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
   const configuredParams = {
     ...params,
     svgText: !params.raster,
     storage: params.raster ? false : (params.storage ?? true),
   };
-  const result = await svgMaker.edit.configure(configuredParams).execute();
+  const result = await c.edit.configure(configuredParams).execute();
   return result;
 }
 
 export async function convertImageToSVG(
-  params: SVGMakerTypes.AiVectorizeParams
+  params: SVGMakerTypes.AiVectorizeParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.AiVectorizeResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
   const configuredParams = { ...params, svgText: true, storage: true };
-  const result = await svgMaker.convert.aiVectorize.configure(configuredParams).execute();
+  const result = await c.convert.aiVectorize.configure(configuredParams).execute();
   return result;
 }
 
-export async function getAccountInfo(): Promise<SVGMakerTypes.AccountResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.account.getInfo();
+export async function removeBackground(
+  params: SVGMakerTypes.RemoveBackgroundParams,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.RemoveBackgroundResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  // Always request svgText so local-save mode has SVG content; respect the caller's
+  // storage choice (true/false), defaulting to true when unspecified.
+  const configuredParams = { ...params, svgText: true, storage: params.storage ?? true };
+  const result = await c.removeBackground.configure(configuredParams).execute();
+  return result;
+}
+
+export async function prepareUpload(
+  params: SVGMakerTypes.UploadPrepareParams,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.UploadPrepareResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.upload.prepare(params);
+}
+
+export async function getAccountInfo(
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.AccountResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.account.getInfo();
 }
 
 export async function getAccountUsage(
-  params?: SVGMakerTypes.AccountUsageParams
+  params?: SVGMakerTypes.AccountUsageParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.AccountUsageResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.account.getUsage(params);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.account.getUsage(params);
 }
 
 export async function listGenerations(
-  params?: SVGMakerTypes.GenerationsListParams
+  params?: SVGMakerTypes.GenerationsListParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GenerationsListResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.generations.list(params);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.generations.list(params);
 }
 
-export async function getGeneration(id: string): Promise<SVGMakerTypes.GenerationResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.generations.get(id);
+export async function getGeneration(
+  id: string,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.GenerationResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.generations.get(id);
 }
 
 export async function deleteGeneration(
-  id: string
+  id: string,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GenerationDeleteResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.generations.delete(id);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.generations.delete(id);
 }
 
-export async function shareGeneration(id: string): Promise<SVGMakerTypes.GenerationShareResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.generations.share(id);
+export async function shareGeneration(
+  id: string,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.GenerationShareResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.generations.share(id);
 }
 
 export async function downloadGeneration(
   id: string,
-  params?: SVGMakerTypes.GenerationDownloadParams
+  params?: SVGMakerTypes.GenerationDownloadParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GenerationDownloadResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.generations.download(id, params);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.generations.download(id, params);
 }
 
 export async function listGallery(
-  params?: SVGMakerTypes.GalleryListParams
+  params?: SVGMakerTypes.GalleryListParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GalleryListResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.gallery.list(params);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.gallery.list(params);
 }
 
-export async function getGalleryItem(id: string): Promise<SVGMakerTypes.GalleryItemResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.gallery.get(id);
+export async function getGalleryItem(
+  id: string,
+  client?: SVGMakerClient
+): Promise<SVGMakerTypes.GalleryItemResponse> {
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.gallery.get(id);
 }
 
 export async function downloadGalleryItem(
   id: string,
-  params?: SVGMakerTypes.GalleryDownloadParams
+  params?: SVGMakerTypes.GalleryDownloadParams,
+  client?: SVGMakerClient
 ): Promise<SVGMakerTypes.GalleryDownloadResponse> {
-  if (!svgMaker) throw new Error('SVGMakerService not initialized.');
-  return await svgMaker.gallery.download(id, params);
+  const c = client ?? svgMaker;
+  if (!c) throw new Error('SVGMakerService not initialized.');
+  return await c.gallery.download(id, params);
 }

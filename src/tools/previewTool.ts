@@ -2,35 +2,54 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ImageContent, TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import { logToFile } from '../utils/logUtils.js';
-import { readLocalPreview } from '../utils/previewUtils.js';
+import { HTTP_LOCAL_PREVIEW_ERROR, readLocalPreview } from '../utils/previewUtils.js';
 
-const PreviewToolInputSchema = z.object({
-  file_path: z
-    .string()
-    .min(1, 'File path is required.')
-    .describe(
-      'Absolute path to a local image file to preview. Supports PNG, SVG, WebP, and SVGZ formats.'
-    ),
-});
+const PreviewToolInputSchema = z
+  .object({
+    input: z
+      .string()
+      .min(1, 'Input is required.')
+      .optional()
+      .describe(
+        'Absolute path to a local image file, e.g. "/Users/me/Desktop/icon.svg". Accepts PNG, SVG, WebP and SVGZ. Readable over the stdio transport only.'
+      ),
+    file_path: z
+      .string()
+      .min(1, 'File path is required.')
+      .optional()
+      .describe('Deprecated alias for `input`. Prefer `input`. Send one of the two, never both.'),
+  })
+  .refine((data) => Boolean(data.input) !== Boolean(data.file_path), {
+    message: 'Provide exactly one of input or file_path.',
+  });
 
-export const previewToolDefinition = {
-  name: 'svgmaker_preview',
-  description:
-    'Previews a local image file by returning it directly in the chat context. Supports PNG, SVG, WebP, and SVGZ formats.',
-  inputSchema: zodToJsonSchema(PreviewToolInputSchema),
-};
+export function buildPreviewToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_preview',
+    description:
+      'Show a local image file (PNG, SVG, WebP or SVGZ) in the conversation as a PNG image. Use this to look at a file already on disk. Works over the stdio transport only, because it reads the local filesystem. To look at an SVGMaker generation or a gallery item, use svgmaker_generations_preview or svgmaker_gallery_preview with an id instead.',
+    inputSchema: zodToJsonSchema(PreviewToolInputSchema),
+  };
+}
 
 export async function handlePreviewTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  _client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = PreviewToolInputSchema.parse(request.params.arguments);
-    const base64Data = await readLocalPreview(validatedArgs.file_path);
+    if (ctx.transport === 'http') {
+      throw new Error(HTTP_LOCAL_PREVIEW_ERROR);
+    }
+    const base64Data = await readLocalPreview((validatedArgs.input ?? validatedArgs.file_path)!);
 
     return {
       content: [

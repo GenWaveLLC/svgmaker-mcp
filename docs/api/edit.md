@@ -8,10 +8,11 @@ Edits existing SVG/image files based on text prompts using the SVGMaker API.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `input_path` | string | No* | — | Absolute file path to the image/SVG to edit. Provide one of `input_path` or `generation_id` |
-| `generation_id` | string | No* | — | ID of an SVGMaker generation or public gallery item to edit. The image will be fetched automatically — tries generations API first, then gallery API. Provide one of `input_path` or `generation_id` |
+| `input` | string | Yes* | — | Image source: a local absolute file path (stdio transport only), an `https://` URL, or an SVGMaker generation/gallery id. See [Input sources](#input-sources) |
+| `input_path` | string | No* | — | Accepted alias for `input`, restricted to a local absolute file path |
+| `generation_id` | string | No* | — | Accepted alias for `input`, restricted to an SVGMaker generation or public gallery id |
 | `prompt` | string | Yes | — | Detailed instructions for how to modify the image |
-| `output_path` | string | Yes | — | Absolute file path where the edited SVG will be saved (must end with .svg) |
+| `output_path` | string | No | — | Absolute file path where the edited SVG will be saved (must end with .svg). When omitted, a hosted URL is returned. Not supported over the HTTPS transport |
 | `quality` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | Quality level. low (fast, basic edits), medium (balanced), high (best quality, forces square aspect ratio) |
 | `aspectRatio` | `"auto"` \| `"square"` \| `"portrait"` \| `"landscape"` | No | `"auto"` | Aspect ratio for the edited SVG. If not specified, AI determines the best ratio |
 | `background` | `"auto"` \| `"transparent"` \| `"opaque"` | No | `"auto"` | Background style. auto (AI determines), transparent (preserves transparency), opaque (solid background) |
@@ -20,6 +21,20 @@ Edits existing SVG/image files based on text prompts using the SVGMaker API.
 | `image_complexity` | `"icon"` \| `"illustration"` \| `"scene"` | No | — | Complexity level. icon (simple), illustration (moderate), scene (complex, full composition) |
 | `composition` | `"centered_object"` \| `"repeating_pattern"` \| `"full_scene"` \| `"objects_in_grid"` | No | — | Layout composition for the edited SVG |
 | `text_style` | `"only_title"` \| `"embedded_text"` | No | — | Text handling. only_title (heading text), embedded_text (text integrated into design) |
+
+\* Exactly one of `input`, `input_path` or `generation_id` must be provided. `input` is preferred; the other two remain accepted for backwards compatibility.
+
+### Input sources
+
+`input` is classified by its shape:
+
+| Value | stdio | HTTPS |
+|-------|-------|-------|
+| `/abs/path.png` or `file:///abs/path.png` | Read from disk and uploaded | Rejected — call `svgmaker_upload` first |
+| `https://…` | Fetched by the SVGMaker API | Fetched by the SVGMaker API |
+| `gen_abc123` | Passed through as `generationId`, resolved server-side | Same |
+
+The MCP server never downloads image bytes: a URL is handed to the SVGMaker API, which fetches it, and a generation id is resolved by the API from its own storage.
 
 ### Style Parameters
 

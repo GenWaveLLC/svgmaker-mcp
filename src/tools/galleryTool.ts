@@ -3,37 +3,44 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
 
 // ── Gallery List Tool ──
 
 const GalleryListToolInputSchema = z.object({
-  page: z.number().int().positive().optional().describe('Page number (1-indexed)'),
-  limit: z.number().int().min(1).max(100).optional().describe('Items per page (1-100)'),
+  page: z.number().int().positive().optional().describe('Page number, 1-indexed. Defaults to 1.'),
+  limit: z.number().int().min(1).max(100).optional().describe('Items per page, 1 to 100.'),
   type: z
     .string()
     .optional()
-    .describe('Filter by generation type (e.g., "generate", "edit", "convert")'),
-  hashtags: z.array(z.string()).optional().describe('Filter by hashtags'),
-  categories: z.array(z.string()).optional().describe('Filter by categories'),
-  query: z.string().optional().describe('Search query for prompt/description'),
-  pro: z.string().optional().describe('Filter for pro images. Pass "true" to filter.'),
-  gold: z.string().optional().describe('Filter for gold images. Pass "true" to filter.'),
+    .describe('Keep only this generation type: "generate", "edit", "convert".'),
+  hashtags: z.array(z.string()).optional().describe('Keep only items carrying all these hashtags.'),
+  categories: z.array(z.string()).optional().describe('Keep only items in these categories.'),
+  query: z.string().optional().describe('Free-text search over the prompt and description.'),
+  pro: z.string().optional().describe('Pass the string "true" to keep only pro images.'),
+  gold: z.string().optional().describe('Pass the string "true" to keep only gold images.'),
 });
 
-export const galleryListToolDefinition = {
-  name: 'svgmaker_gallery_list',
-  description:
-    'Browse the public SVGMaker gallery with optional filtering and pagination. Returns gallery item IDs that can be used with other gallery tools.',
-  inputSchema: zodToJsonSchema(GalleryListToolInputSchema),
-};
+export function buildGalleryListToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_gallery_list',
+    description:
+      'Browse the public SVGMaker gallery and list item ids, with optional filters and pagination. Use this to find reference or inspiration images made by other users. For images the caller made themselves, use svgmaker_generations_list instead. Returns ids and page counts only, not images.',
+    inputSchema: zodToJsonSchema(GalleryListToolInputSchema),
+  };
+}
 
 export async function handleGalleryListTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -53,7 +60,8 @@ export async function handleGalleryListTool(
     if (validatedArgs.gold !== undefined) params.gold = validatedArgs.gold;
 
     const result = await svgmakerService.listGallery(
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
     const lines: string[] = [];
@@ -88,26 +96,33 @@ export async function handleGalleryListTool(
 // ── Gallery Get Tool ──
 
 const GalleryGetToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of a public gallery item, as returned by svgmaker_gallery_list.'),
 });
 
-export const galleryGetToolDefinition = {
-  name: 'svgmaker_gallery_get',
-  description:
-    'Gets detailed information about a specific gallery item by ID, including the prompt used, type, quality level, hashtags, and categories.',
-  inputSchema: zodToJsonSchema(GalleryGetToolInputSchema),
-};
+export function buildGalleryGetToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_gallery_get',
+    description:
+      'Get the details of a public gallery item by id: the prompt used, type, quality, hashtags and categories. Returns metadata as text, not the image — use svgmaker_gallery_preview to see the image itself.',
+    inputSchema: zodToJsonSchema(GalleryGetToolInputSchema),
+  };
+}
 
 export async function handleGalleryGetTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY GET TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryGetToolInputSchema.parse(request.params.arguments);
-    const result = await svgmakerService.getGalleryItem(validatedArgs.generation_id);
+    const result = await svgmakerService.getGalleryItem(validatedArgs.generation_id, client);
 
     const hashTags =
       result.hashTags && result.hashTags.length > 0 ? result.hashTags.join(', ') : 'None';
@@ -144,28 +159,50 @@ export async function handleGalleryGetTool(
 // ── Gallery Download Tool ──
 
 const GalleryDownloadToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of a public gallery item, as returned by svgmaker_gallery_list.'),
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
-    .describe('Absolute file path where the downloaded file will be saved.'),
+    .optional()
+    .describe(
+      'Absolute file path to save the download to, e.g. "/Users/me/Desktop/icon.svg". Give it the extension that matches format. Omit it to get an SVGMaker-hosted download URL instead of a file. Stdio transport only.'
+    ),
   format: z
     .enum(['svg', 'webp', 'png', 'svg-optimized', 'svgz'])
     .optional()
-    .describe('Download format. Defaults to webp.'),
-  optimize: z.boolean().optional().describe('Optimize before compressing (only for svgz format).'),
+    .describe(
+      'Output format: svg (source vector), svg-optimized (smaller vector), svgz (gzipped vector), png or webp (raster). Defaults to webp. The three vector formats cost 1 credit each; png and webp are free.'
+    ),
+  optimize: z
+    .boolean()
+    .optional()
+    .describe('Optimize the vector before gzip compression. Applies to the svgz format only.'),
 });
 
-export const galleryDownloadToolDefinition = {
-  name: 'svgmaker_gallery_download',
-  description:
-    'Downloads a gallery item in the specified format and saves it to a local file. Supports SVG, WebP, PNG, optimized SVG, and SVGZ formats. Costs 1 credit for SVG formats (svg, svg-optimized, svgz), 0 credits for WebP/PNG.',
-  inputSchema: zodToJsonSchema(GalleryDownloadToolInputSchema),
-};
+export function buildGalleryDownloadToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_gallery_download',
+    description: isHttp
+      ? 'Download a public gallery item in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_gallery_preview instead when you only need to look at the image.'
+      : 'Download a public gallery item in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Use svgmaker_gallery_preview instead when you only need to look at the image.',
+    // The runtime schema keeps output_path so the guard can answer a stale client.
+    inputSchema: zodToJsonSchema(
+      isHttp
+        ? GalleryDownloadToolInputSchema.omit({ output_path: true })
+        : GalleryDownloadToolInputSchema
+    ),
+  };
+}
 
 export async function handleGalleryDownloadTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY DOWNLOAD TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -173,11 +210,12 @@ export async function handleGalleryDownloadTool(
   try {
     const validatedArgs = GalleryDownloadToolInputSchema.parse(request.params.arguments);
 
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      [],
-      'write'
-    );
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
+
+    const validatedOutputPath = validatedArgs.output_path
+      ? await fileUtils.resolveAndValidatePath(validatedArgs.output_path, 'write')
+      : undefined;
 
     // Build SDK params with only defined fields
     const params: Record<string, any> = {};
@@ -186,10 +224,19 @@ export async function handleGalleryDownloadTool(
 
     const result = await svgmakerService.downloadGalleryItem(
       validatedArgs.generation_id,
-      Object.keys(params).length > 0 ? params : undefined
+      Object.keys(params).length > 0 ? params : undefined,
+      client
     );
 
-    // Fetch the file from the download URL
+    if (!validatedOutputPath) {
+      // Cloud mode: return the SVGMaker-hosted download URL, no disk writes.
+      if (!result.url) {
+        throw new Error('SVGMaker API did not return a hosted URL.');
+      }
+      return buildUrlResult('Gallery item download ready.', result.url, result.urlExpiresIn);
+    }
+
+    // Local/stdio mode: fetch the file from the download URL and save it.
     const response = await fetch(result.url);
     if (!response.ok) {
       throw new Error(`Failed to download file: HTTP ${response.status}`);
@@ -228,19 +275,26 @@ export async function handleGalleryDownloadTool(
 // ── Gallery Preview Tool ──
 
 const GalleryPreviewToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of a public gallery item, as returned by svgmaker_gallery_list.'),
 });
 
-export const galleryPreviewToolDefinition = {
-  name: 'svgmaker_gallery_preview',
-  description:
-    'Previews a gallery item by returning the image directly in the chat context as a PNG image. Use this to visually inspect a gallery item without saving it to disk.',
-  inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
-};
+export function buildGalleryPreviewToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_gallery_preview',
+    description:
+      'Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, on any transport, and it costs no credits. Use svgmaker_gallery_download instead when the user wants the file or a URL, and svgmaker_generations_preview for generations the caller made.',
+    inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
+  };
+}
 
 export async function handleGalleryPreviewTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -248,9 +302,13 @@ export async function handleGalleryPreviewTool(
   try {
     const validatedArgs = GalleryPreviewToolInputSchema.parse(request.params.arguments);
 
-    const result = await svgmakerService.downloadGalleryItem(validatedArgs.generation_id, {
-      format: 'png',
-    });
+    const result = await svgmakerService.downloadGalleryItem(
+      validatedArgs.generation_id,
+      {
+        format: 'png',
+      },
+      client
+    );
     const base64Data = await fetchRemotePreview(result.url);
 
     return {

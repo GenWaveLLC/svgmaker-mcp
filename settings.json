@@ -1,0 +1,13 @@
+{
+  "SERVICE_NAME": "svgmaker-mcp",
+  "REGION": "us-central1",
+  "PORT": "8080",
+  "MEMORY": "1Gi",
+  "CPU": "1",
+  "MIN_INSTANCES": "0",
+  "MAX_INSTANCES": "3",
+  "CONCURRENCY": "80",
+  "TIMEOUT": "600",
+  "MCP_PUBLIC_URL": "https://mcp.svgmaker.io",
+  "SVGMAKER_AUTH_SERVER_URL": "https://svgmaker.io"
+}

@@ -2,126 +2,166 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
+import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
+import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  applyImageInput,
+  INPUT_PARAM_DESCRIPTION,
+  INPUT_PARAM_DESCRIPTION_HTTP,
+  resolveImageInput,
+  selectImageSource,
+} from '../utils/inputResolver.js';
 
-const EditToolInputSchema = z
-  .object({
-    input_path: z
-      .string()
-      .min(1, 'Input path cannot be empty.')
-      .optional()
-      .describe(
-        'Absolute path to the existing image/SVG file to be edited. Supports various formats including PNG, JPEG, SVG, and other common image types. Provide one of input_path or generation_id.'
-      ),
-    generation_id: z
-      .string()
-      .min(1, 'Generation ID cannot be empty.')
-      .optional()
-      .describe(
-        'ID of an SVGMaker generation to edit. Works for both your own generations and public gallery items. The image will be fetched automatically. Provide one of input_path or generation_id.'
-      ),
-    prompt: z
-      .string()
-      .min(1, 'Prompt cannot be empty.')
-      .describe(
-        'Detailed instructions for how to modify the image. Be specific about changes like style adjustments, color modifications, element additions/removals, or layout changes. Example: "Change the background to blue and add a white border"'
-      ),
-    output_path: z
-      .string()
-      .min(1, 'Output path cannot be empty.')
-      .describe(
-        'Absolute file path where the generated SVG will be saved. Must include the .svg extension. Example: "/Users/username/Documents/modified-artwork.svg"'
-      ),
-    quality: z
-      .enum(['low', 'medium', 'high'])
-      .optional()
-      .default('medium')
-      .describe(
-        'Quality level for SVG editing. Do not specifiy if not explicitely mentioned by the user. Affects processing time and detail level: low (fast, basic edits), medium (balanced quality and speed, default), high (best quality, forces square aspect ratio)'
-      ),
-    aspectRatio: z
-      .enum(['auto', 'portrait', 'landscape', 'square'])
-      .optional()
-      .describe(
-        'Aspect ratio for the edited SVG: auto (maintain original proportions), square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). Do not specifiy if not explicitely mentioned by the user. When not specified the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
-      ),
-    background: z
-      .enum(['auto', 'transparent', 'opaque'])
-      .optional()
-      .default('auto')
-      .describe(
-        'Background style for the edited SVG: auto (AI determines best, default), transparent (no background, preserves transparency), opaque (solid background color). Do not specify if not explicitly mentioned by the user.'
-      ),
-    style: z
-      .enum([
-        'flat',
-        'line_art',
-        'engraving',
-        'linocut',
-        'silhouette',
-        'isometric',
-        'cartoon',
-        'ghibli',
-      ])
-      .optional()
-      .describe(
-        'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
-      ),
-    color_mode: z
-      .enum(['full_color', 'monochrome', 'few_colors'])
-      .optional()
-      .describe(
-        'Color scheme: full_color (default, wide palette), monochrome (single color/shades), few_colors (limited palette). Only specify if user requests a specific color scheme.'
-      ),
-    image_complexity: z
-      .enum(['icon', 'illustration', 'scene'])
-      .optional()
-      .describe(
-        'Complexity level: icon (simple, minimal detail), illustration (moderate detail), scene (complex, full composition). Only specify if user requests a specific complexity.'
-      ),
-    composition: z
-      .enum(['centered_object', 'repeating_pattern', 'full_scene', 'objects_in_grid'])
-      .optional()
-      .describe(
-        'Layout composition: centered_object (single focus element), repeating_pattern (tiled/repeated), full_scene (complete scene), objects_in_grid (grid arrangement). Only specify if user requests a specific layout.'
-      ),
-    text_style: z
-      .enum(['only_title', 'embedded_text'])
-      .optional()
-      .describe(
-        'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
-      ),
-    raster: z
-      .boolean()
-      .optional()
-      .describe(
-        'When true, skips SVG vectorization and returns a raster PNG image instead of SVG. The output_path should use .png extension. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
-      ),
-    storage: z
-      .boolean()
-      .optional()
-      .describe(
-        'When true, stores the edited image permanently in cloud storage. Cannot be used with raster mode. Defaults to true when raster is not set.'
-      ),
-  })
-  .refine((data) => !(data.raster && data.storage), {
-    message:
-      "Cannot use 'storage: true' with 'raster: true'. Raster mode returns temporary URLs only.",
-  });
+const EditToolObjectSchema = z.object({
+  input: z.string().min(1, 'Input cannot be empty.').optional().describe(INPUT_PARAM_DESCRIPTION),
+  input_path: z
+    .string()
+    .min(1, 'Input path cannot be empty.')
+    .optional()
+    .describe(
+      'Deprecated alias for `input`, restricted to a local absolute file path. Prefer `input`.'
+    ),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID cannot be empty.')
+    .optional()
+    .describe(
+      'Deprecated alias for `input`, restricted to an SVGMaker generation or gallery id. Prefer `input`.'
+    ),
+  prompt: z
+    .string()
+    .min(1, 'Prompt cannot be empty.')
+    .describe(
+      'Detailed instructions for how to modify the image. Be specific about changes like style adjustments, color modifications, element additions/removals, or layout changes. Example: "Change the background to blue and add a white border"'
+    ),
+  output_path: z
+    .string()
+    .min(1, 'Output path cannot be empty.')
+    .optional()
+    .describe(
+      'Optional absolute file path to save the result locally. Use the .svg extension, or .png when raster is true. Example: "/Users/username/Documents/modified-artwork.svg". Omit it to get a hosted SVGMaker URL instead of a file.'
+    ),
+  quality: z
+    .enum(['low', 'medium', 'high'])
+    .optional()
+    .default('medium')
+    .describe(
+      'Quality level for SVG editing. Do not specifiy if not explicitely mentioned by the user. Affects processing time and detail level: low (fast, basic edits), medium (balanced quality and speed, default), high (best quality, forces square aspect ratio)'
+    ),
+  aspectRatio: z
+    .enum(['auto', 'portrait', 'landscape', 'square'])
+    .optional()
+    .describe(
+      'Aspect ratio for the edited SVG: auto (maintain original proportions), square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). Do not specifiy if not explicitely mentioned by the user. When not specified the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
+    ),
+  background: z
+    .enum(['auto', 'transparent', 'opaque'])
+    .optional()
+    .default('auto')
+    .describe(
+      'Background style for the edited SVG: auto (AI determines best, default), transparent (no background, preserves transparency), opaque (solid background color). Do not specify if not explicitly mentioned by the user.'
+    ),
+  style: z
+    .enum([
+      'flat',
+      'line_art',
+      'engraving',
+      'linocut',
+      'silhouette',
+      'isometric',
+      'cartoon',
+      'ghibli',
+    ])
+    .optional()
+    .describe(
+      'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
+    ),
+  color_mode: z
+    .enum(['full_color', 'monochrome', 'few_colors'])
+    .optional()
+    .describe(
+      'Color scheme: full_color (default, wide palette), monochrome (single color/shades), few_colors (limited palette). Only specify if user requests a specific color scheme.'
+    ),
+  image_complexity: z
+    .enum(['icon', 'illustration', 'scene'])
+    .optional()
+    .describe(
+      'Complexity level: icon (simple, minimal detail), illustration (moderate detail), scene (complex, full composition). Only specify if user requests a specific complexity.'
+    ),
+  composition: z
+    .enum(['centered_object', 'repeating_pattern', 'full_scene', 'objects_in_grid'])
+    .optional()
+    .describe(
+      'Layout composition: centered_object (single focus element), repeating_pattern (tiled/repeated), full_scene (complete scene), objects_in_grid (grid arrangement). Only specify if user requests a specific layout.'
+    ),
+  text_style: z
+    .enum(['only_title', 'embedded_text'])
+    .optional()
+    .describe(
+      'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
+    ),
+  raster: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, skips SVG vectorization and returns a raster PNG image instead of SVG. The output_path should use .png extension. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
+    ),
+  storage: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, stores the edited image permanently in cloud storage. Cannot be used with raster mode. Defaults to true when raster is not set.'
+    ),
+});
 
-export const editToolDefinition = {
-  name: 'svgmaker_edit',
-  description:
-    'Edits an existing image/SVG file based on a text prompt using SVGMaker API and saves it to a specified local path. Provide specific instructions on how to modify the image, including style changes, color adjustments, element additions or removals, and layout modifications.',
-  inputSchema: zodToJsonSchema(EditToolInputSchema),
-};
+const EditToolInputSchema = EditToolObjectSchema.refine((data) => !(data.raster && data.storage), {
+  message:
+    "Cannot use 'storage: true' with 'raster: true'. Raster mode returns temporary URLs only.",
+});
+
+// input_path is local-path-only, so over HTTP it is dropped alongside output_path.
+const EditToolHttpSchema = EditToolObjectSchema.omit({
+  output_path: true,
+  input_path: true,
+}).extend({
+  input: z
+    .string()
+    .min(1, 'Input cannot be empty.')
+    .optional()
+    .describe(INPUT_PARAM_DESCRIPTION_HTTP),
+  raster: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, skips SVG vectorization and returns a hosted raster PNG URL instead of an SVG. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
+    ),
+});
+
+const EDIT_DESCRIPTION_STDIO =
+  'Edit an existing image or SVG with a text prompt. Use this to change artwork you already have; use svgmaker_generate to create new artwork, and svgmaker_convert to vectorize a raster image without changing it. The image comes from `input`, which accepts a local absolute file path, an https:// URL, an upl_ upload id, or a generation id. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
+
+const EDIT_DESCRIPTION_HTTP =
+  'Edit an existing image or SVG with a text prompt. Use this to change artwork you already have; use svgmaker_generate to create new artwork, and svgmaker_convert to vectorize a raster image without changing it. The image comes from `input`, which accepts an https:// URL, an upl_ upload id from svgmaker_upload, or a generation id. Returns a hosted SVGMaker URL for the edited file, plus its expiry. To save it locally, download that URL yourself before it expires.';
+
+export function buildEditToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_edit',
+    description: isHttp ? EDIT_DESCRIPTION_HTTP : EDIT_DESCRIPTION_STDIO,
+    inputSchema: zodToJsonSchema(isHttp ? EditToolHttpSchema : EditToolObjectSchema),
+  };
+}
 
 export async function handleEditTool(
   server: Server,
-  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } }
+  request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
+  client?: SVGMakerClient,
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   const { arguments: args } = request.params;
 
@@ -133,46 +173,20 @@ export async function handleEditTool(
   try {
     const validatedArgs = EditToolInputSchema.parse(args);
 
-    const providedSources = [validatedArgs.input_path, validatedArgs.generation_id].filter(Boolean);
-    if (providedSources.length === 0) {
-      throw new Error('One of input_path or generation_id must be provided.');
-    }
-    if (providedSources.length > 1) {
-      throw new Error('Provide only one of input_path or generation_id.');
-    }
+    const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
+    if (outputPathRejection) return outputPathRejection;
 
-    const clientRoots: any[] = [];
-    const validatedOutputPath = await fileUtils.resolveAndValidatePath(
-      validatedArgs.output_path,
-      clientRoots,
-      'write'
-    );
+    const imageSource = selectImageSource(validatedArgs);
 
-    let inputImage: Buffer;
-    if (validatedArgs.generation_id) {
-      let downloadResult;
-      try {
-        downloadResult = await svgmakerService.downloadGeneration(validatedArgs.generation_id, {
-          format: 'png',
-        });
-      } catch {
-        downloadResult = await svgmakerService.downloadGalleryItem(validatedArgs.generation_id, {
-          format: 'png',
-        });
-      }
-      const response = await fetch(downloadResult.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: HTTP ${response.status}`);
-      }
-      inputImage = Buffer.from(await response.arrayBuffer());
-    } else {
-      const validatedInputPath = await fileUtils.resolveAndValidatePath(
-        validatedArgs.input_path!,
-        clientRoots,
-        'read'
+    let validatedOutputPath: string | undefined;
+    if (validatedArgs.output_path) {
+      validatedOutputPath = await fileUtils.resolveAndValidatePath(
+        validatedArgs.output_path,
+        'write'
       );
-      inputImage = await fileUtils.readFileToBuffer(validatedInputPath);
     }
+
+    const resolvedInput = await resolveImageInput(imageSource, ctx);
 
     // Determine aspect ratio based on quality and explicit aspectRatio
     let finalAspectRatio = validatedArgs.aspectRatio;
@@ -211,13 +225,14 @@ export async function handleEditTool(
       if (validatedArgs.text_style) styleParams.text = validatedArgs.text_style;
 
       const sdkParams: Record<string, any> = {
-        image: inputImage,
         prompt: validatedArgs.prompt,
         quality: validatedArgs.quality,
         aspectRatio: finalAspectRatio,
         background: validatedArgs.background,
         svgText: !validatedArgs.raster,
       };
+
+      applyImageInput(sdkParams, resolvedInput, 'image');
 
       if (validatedArgs.raster) {
         sdkParams.raster = true;
@@ -240,7 +255,7 @@ export async function handleEditTool(
       let result;
       try {
         // The actual API call
-        result = await svgmakerService.editSVG(sdkParams as any);
+        result = await svgmakerService.editSVG(sdkParams as any, client);
       } finally {
         // Clean up the progress interval
         progressManager.stopProcessingProgress();
@@ -249,40 +264,58 @@ export async function handleEditTool(
       // Update progress: processing complete
       await progressManager.sendSavingProgress();
 
-      if (validatedArgs.raster && result.imageUrl) {
-        const response = await fetch(result.imageUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to download raster image: HTTP ${response.status}`);
+      if (validatedOutputPath) {
+        // Local/stdio mode: save the output to disk.
+        if (validatedArgs.raster && result.imageUrl) {
+          const response = await fetch(result.imageUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to download raster image: HTTP ${response.status}`);
+          }
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await fileUtils.writeFileBuffer(validatedOutputPath, buffer);
+
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Raster PNG edited successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else if (result.svgText) {
+          await fileUtils.writeFile(validatedOutputPath, result.svgText);
+
+          // Send final progress
+          await progressManager.sendFinalProgress();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `SVG edited successfully: ${validatedOutputPath}`,
+              } as TextContent,
+            ],
+          };
+        } else {
+          throw new Error('SVGMaker API did not return SVG content.');
         }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        await fileUtils.writeFileBuffer(validatedOutputPath, buffer);
-
-        await progressManager.sendFinalProgress();
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Raster PNG edited successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
-      } else if (result.svgText) {
-        await fileUtils.writeFile(validatedOutputPath, result.svgText);
-
-        // Send final progress
-        await progressManager.sendFinalProgress();
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `SVG edited successfully: ${validatedOutputPath}`,
-            } as TextContent,
-          ],
-        };
       } else {
-        throw new Error('SVGMaker API did not return SVG content.');
+        // Cloud mode: no output path provided, return the hosted URL.
+        await progressManager.sendFinalProgress();
+
+        if (validatedArgs.raster && result.imageUrl) {
+          return buildUrlResult(
+            'Raster PNG edited successfully.',
+            result.imageUrl,
+            result.imageUrlExpiresIn
+          );
+        } else if (result.svgUrl) {
+          return buildUrlResult('SVG edited successfully.', result.svgUrl, result.svgUrlExpiresIn);
+        } else {
+          throw new Error('SVGMaker API did not return a hosted URL.');
+        }
       }
     } catch (error: any) {
       // Ensure cleanup on error
