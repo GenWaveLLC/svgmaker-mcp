@@ -12,6 +12,7 @@ import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.j
 import {
   applyImageInput,
   NO_GENERATION_INPUT_PARAM_DESCRIPTION,
+  NO_GENERATION_INPUT_PARAM_DESCRIPTION_HTTP,
   resolveImageInput,
   selectImageSource,
 } from '../utils/inputResolver.js';
@@ -34,16 +35,36 @@ const ConvertToolInputSchema = z.object({
     .min(1, 'Output path cannot be empty.')
     .optional()
     .describe(
-      'Optional absolute file path where the generated SVG will be saved. When provided, the tool saves the SVG locally (must include the .svg extension). When omitted, the tool returns a SVGMaker-hosted URL instead of writing to disk (cloud mode). Example: "/Users/username/Documents/vector-art.svg"'
+      'Optional absolute file path to save the SVG locally. Must include the .svg extension. Example: "/Users/username/Documents/vector-art.svg". Omit it to get a hosted SVGMaker URL instead of a file.'
     ),
 });
 
-export const convertToolDefinition = {
-  name: 'svgmaker_convert',
-  description:
-    'Converts a raster image (PNG, JPEG, WebP, etc.) to SVG format using AI-powered vectorization via SVGMaker API. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, or an upl_ upload id. Generation ids are not accepted — an existing generation is already an SVG. Saves the result to output_path when given, otherwise returns a hosted URL.',
-  inputSchema: zodToJsonSchema(ConvertToolInputSchema),
-};
+// input_path is local-path-only, so over HTTP it is dropped alongside output_path.
+const ConvertToolHttpSchema = ConvertToolInputSchema.omit({
+  output_path: true,
+  input_path: true,
+}).extend({
+  input: z
+    .string()
+    .min(1, 'Input cannot be empty.')
+    .optional()
+    .describe(NO_GENERATION_INPUT_PARAM_DESCRIPTION_HTTP),
+});
+
+const CONVERT_DESCRIPTION_STDIO =
+  'Convert a raster image (PNG, JPEG, WebP) to SVG by AI vectorization. Use this to trace an existing image as-is; use svgmaker_edit when the image should also be changed. The image comes from `input`, which accepts a local absolute file path, an https:// URL, or an upl_ upload id. Generation ids are not accepted — a generation is already an SVG. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
+
+const CONVERT_DESCRIPTION_HTTP =
+  'Convert a raster image (PNG, JPEG, WebP) to SVG by AI vectorization. Use this to trace an existing image as-is; use svgmaker_edit when the image should also be changed. The image comes from `input`, which accepts an https:// URL or an upl_ upload id from svgmaker_upload. Generation ids are not accepted — a generation is already an SVG. Returns a hosted SVGMaker URL for the vectorized file, plus its expiry. To save it locally, download that URL yourself before it expires.';
+
+export function buildConvertToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_convert',
+    description: isHttp ? CONVERT_DESCRIPTION_HTTP : CONVERT_DESCRIPTION_STDIO,
+    inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
+  };
+}
 
 export async function handleConvertTool(
   server: Server,

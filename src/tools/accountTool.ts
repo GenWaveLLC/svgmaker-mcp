@@ -11,12 +11,14 @@ import { logToFile } from '../utils/logUtils.js';
 
 const AccountInfoToolInputSchema = z.object({});
 
-export const accountInfoToolDefinition = {
-  name: 'svgmaker_account_info',
-  description:
-    'Retrieves SVGMaker account information including email, display name, account type, and available credits.',
-  inputSchema: zodToJsonSchema(AccountInfoToolInputSchema),
-};
+export function buildAccountInfoToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_account_info',
+    description:
+      'Get the SVGMaker account identity and credit balance: email, display name, account type, and remaining credits. Use this to check credits before a paid operation, or to confirm which account the key belongs to. For per-request counts and credit spend over time, use svgmaker_account_usage instead. Takes no arguments.',
+    inputSchema: zodToJsonSchema(AccountInfoToolInputSchema),
+  };
+}
 
 export async function handleAccountInfoTool(
   server: Server,
@@ -62,23 +64,31 @@ const AccountUsageToolInputSchema = z.object({
     .int()
     .positive()
     .optional()
-    .describe('Number of days to look back. Cannot be used with start/end.'),
+    .describe(
+      'Whole number of days to look back from today, e.g. 30. Cannot be combined with start/end. Omit all three arguments for all-time totals.'
+    ),
   start: z
     .string()
     .optional()
-    .describe('Start date in YYYY-MM-DD format. Must be used with end. Cannot be used with days.'),
+    .describe(
+      'Start date of the range, YYYY-MM-DD, e.g. "2026-01-01". Must be sent together with end, and cannot be combined with days.'
+    ),
   end: z
     .string()
     .optional()
-    .describe('End date in YYYY-MM-DD format. Must be used with start. Cannot be used with days.'),
+    .describe(
+      'End date of the range, YYYY-MM-DD, e.g. "2026-01-31". Must be sent together with start, and cannot be combined with days.'
+    ),
 });
 
-export const accountUsageToolDefinition = {
-  name: 'svgmaker_account_usage',
-  description:
-    'Retrieves SVGMaker API usage statistics for the account, including request counts, credits used, success/error rates, and breakdowns by category and day.',
-  inputSchema: zodToJsonSchema(AccountUsageToolInputSchema),
-};
+export function buildAccountUsageToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_account_usage',
+    description:
+      'Get SVGMaker API usage statistics for the account: request counts, credits used, success and error counts, and breakdowns by category and by day. Use this to answer "how much have I used"; use svgmaker_account_info for the current credit balance. Pick one time window: either days, or a start/end pair, or neither for all-time.',
+    inputSchema: zodToJsonSchema(AccountUsageToolInputSchema),
+  };
+}
 
 export async function handleAccountUsageTool(
   server: Server,

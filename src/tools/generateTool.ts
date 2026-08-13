@@ -10,104 +10,124 @@ import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
 
-const GenerateToolInputSchema = z
-  .object({
-    prompt: z
-      .string()
-      .min(1, 'Prompt cannot be empty.')
-      .describe(
-        'A detailed text description of the SVG image to generate. Include style, colors, composition, and key visual elements for best results.'
-      ),
-    output_path: z
-      .string()
-      .min(1, 'Output path cannot be empty.')
-      .optional()
-      .describe(
-        'Optional. Absolute file path where the generated SVG will be saved locally. Must include the .svg extension. Example: "/Users/username/Documents/artwork.svg". When provided, the file is saved to disk. When omitted (cloud mode), the tool returns a hosted SVGMaker URL instead of saving a file.'
-      ),
-    quality: z
-      .enum(['low', 'medium', 'high'])
-      .optional()
-      .default('medium')
-      .describe(
-        'Quality level for SVG generation. Affects processing time and detail level: low (fast, basic), medium (balanced, default, preferred if not specified explicitly by the user), high (best quality, forces square aspect ratio)'
-      ),
-    aspectRatio: z
-      .enum(['square', 'portrait', 'landscape'])
-      .optional()
-      .describe(
-        'Aspect ratio for the generated SVG: square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). If not specified by the user, no need to specify, as the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
-      ),
-    background: z
-      .enum(['auto', 'transparent', 'opaque'])
-      .optional()
-      .default('auto')
-      .describe(
-        'Background style: auto (AI determines best, default, preferred if not specified explicitly by the user), transparent (no background, good for overlays), opaque (solid background color)'
-      ),
-    style: z
-      .enum([
-        'flat',
-        'line_art',
-        'engraving',
-        'linocut',
-        'silhouette',
-        'isometric',
-        'cartoon',
-        'ghibli',
-      ])
-      .optional()
-      .describe(
-        'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
-      ),
-    color_mode: z
-      .enum(['full_color', 'monochrome', 'few_colors'])
-      .optional()
-      .describe(
-        'Color scheme: full_color (default, wide palette), monochrome (single color/shades), few_colors (limited palette). Only specify if user requests a specific color scheme.'
-      ),
-    image_complexity: z
-      .enum(['icon', 'illustration', 'scene'])
-      .optional()
-      .describe(
-        'Complexity level: icon (simple, minimal detail), illustration (moderate detail), scene (complex, full composition). Only specify if user requests a specific complexity.'
-      ),
-    composition: z
-      .enum(['centered_object', 'repeating_pattern', 'full_scene', 'objects_in_grid'])
-      .optional()
-      .describe(
-        'Layout composition: centered_object (single focus element), repeating_pattern (tiled/repeated), full_scene (complete scene), objects_in_grid (grid arrangement). Only specify if user requests a specific layout.'
-      ),
-    text_style: z
-      .enum(['only_title', 'embedded_text'])
-      .optional()
-      .describe(
-        'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
-      ),
-    raster: z
-      .boolean()
-      .optional()
-      .describe(
-        'When true, skips SVG vectorization and returns a raster PNG image instead of SVG. The output_path should use .png extension. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
-      ),
-    storage: z
-      .boolean()
-      .optional()
-      .describe(
-        'When true, stores the generated image permanently in cloud storage. Cannot be used with raster mode. Defaults to true when raster is not set.'
-      ),
-  })
-  .refine((data) => !(data.raster && data.storage), {
+const GenerateToolObjectSchema = z.object({
+  prompt: z
+    .string()
+    .min(1, 'Prompt cannot be empty.')
+    .describe(
+      'A detailed text description of the SVG image to generate. Include style, colors, composition, and key visual elements for best results.'
+    ),
+  output_path: z
+    .string()
+    .min(1, 'Output path cannot be empty.')
+    .optional()
+    .describe(
+      'Optional absolute file path to save the result locally. Use the .svg extension, or .png when raster is true. Example: "/Users/username/Documents/artwork.svg". Omit it to get a hosted SVGMaker URL instead of a file.'
+    ),
+  quality: z
+    .enum(['low', 'medium', 'high'])
+    .optional()
+    .default('medium')
+    .describe(
+      'Quality level for SVG generation. Affects processing time and detail level: low (fast, basic), medium (balanced, default, preferred if not specified explicitly by the user), high (best quality, forces square aspect ratio)'
+    ),
+  aspectRatio: z
+    .enum(['square', 'portrait', 'landscape'])
+    .optional()
+    .describe(
+      'Aspect ratio for the generated SVG: square (1:1, good for logos), portrait (taller, good for posters), landscape (wider, good for banners). If not specified by the user, no need to specify, as the quality will determine the default (low and medium use auto, high forces square aspect ratio)'
+    ),
+  background: z
+    .enum(['auto', 'transparent', 'opaque'])
+    .optional()
+    .default('auto')
+    .describe(
+      'Background style: auto (AI determines best, default, preferred if not specified explicitly by the user), transparent (no background, good for overlays), opaque (solid background color)'
+    ),
+  style: z
+    .enum([
+      'flat',
+      'line_art',
+      'engraving',
+      'linocut',
+      'silhouette',
+      'isometric',
+      'cartoon',
+      'ghibli',
+    ])
+    .optional()
+    .describe(
+      'Art style for the SVG: flat (clean minimal), line_art (outline-based), engraving (detailed etched), linocut (block print), silhouette (solid shapes), isometric (3D-like), cartoon (playful), ghibli (anime-inspired). Only specify if user requests a specific style.'
+    ),
+  color_mode: z
+    .enum(['full_color', 'monochrome', 'few_colors'])
+    .optional()
+    .describe(
+      'Color scheme: full_color (default, wide palette), monochrome (single color/shades), few_colors (limited palette). Only specify if user requests a specific color scheme.'
+    ),
+  image_complexity: z
+    .enum(['icon', 'illustration', 'scene'])
+    .optional()
+    .describe(
+      'Complexity level: icon (simple, minimal detail), illustration (moderate detail), scene (complex, full composition). Only specify if user requests a specific complexity.'
+    ),
+  composition: z
+    .enum(['centered_object', 'repeating_pattern', 'full_scene', 'objects_in_grid'])
+    .optional()
+    .describe(
+      'Layout composition: centered_object (single focus element), repeating_pattern (tiled/repeated), full_scene (complete scene), objects_in_grid (grid arrangement). Only specify if user requests a specific layout.'
+    ),
+  text_style: z
+    .enum(['only_title', 'embedded_text'])
+    .optional()
+    .describe(
+      'Text handling in SVG: only_title (just a title/heading), embedded_text (text integrated into the design). Only specify if the design should include text.'
+    ),
+  raster: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, skips SVG vectorization and returns a raster PNG image instead of SVG. The output_path should use .png extension. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
+    ),
+  storage: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, stores the generated image permanently in cloud storage. Cannot be used with raster mode. Defaults to true when raster is not set.'
+    ),
+});
+
+const GenerateToolInputSchema = GenerateToolObjectSchema.refine(
+  (data) => !(data.raster && data.storage),
+  {
     message:
       "Cannot use 'storage: true' with 'raster: true'. Raster mode returns temporary URLs only.",
-  });
+  }
+);
 
-export const generateToolDefinition = {
-  name: 'svgmaker_generate',
-  description:
-    'Generates an SVG image from a detailed text prompt using SVGMaker API and saves it to a specified local path. For best results, provide a clear, detailed description of the desired image including style, colors, composition, and key elements. If quality is not specified, medium quality will be used by default.',
-  inputSchema: zodToJsonSchema(GenerateToolInputSchema),
-};
+const GenerateToolHttpSchema = GenerateToolObjectSchema.omit({ output_path: true }).extend({
+  raster: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, skips SVG vectorization and returns a hosted raster PNG URL instead of an SVG. Useful when the user wants a quick raster image without vectorization. Cannot be used with storage.'
+    ),
+});
+
+const GENERATE_DESCRIPTION_STDIO =
+  'Generate a new SVG image from a text prompt. Use this to create artwork from a description; use svgmaker_edit to change an existing image, and svgmaker_convert to vectorize a raster image. Write a detailed prompt covering subject, style, colors and composition. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL. Quality defaults to medium.';
+
+const GENERATE_DESCRIPTION_HTTP =
+  'Generate a new SVG image from a text prompt. Use this to create artwork from a description; use svgmaker_edit to change an existing image, and svgmaker_convert to vectorize a raster image. Write a detailed prompt covering subject, style, colors and composition. Returns a hosted SVGMaker URL for the generated file, plus its expiry. To save it locally, download that URL yourself before it expires. Quality defaults to medium.';
+
+export function buildGenerateToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_generate',
+    description: isHttp ? GENERATE_DESCRIPTION_HTTP : GENERATE_DESCRIPTION_STDIO,
+    inputSchema: zodToJsonSchema(isHttp ? GenerateToolHttpSchema : GenerateToolObjectSchema),
+  };
+}
 
 export async function handleGenerateTool(
   server: Server,

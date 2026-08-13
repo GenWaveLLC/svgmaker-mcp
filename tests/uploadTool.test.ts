@@ -100,6 +100,20 @@ describe('svgmaker_upload handler', () => {
     await client.close();
   });
 
+  it('advertises the three-step flow with a concrete upload id', async () => {
+    const server = createMcpServer(undefined, { transport: 'http' });
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    const { tools } = await client.listTools();
+    const description = tools.find((tool) => tool.name === 'svgmaker_upload')?.description ?? '';
+    expect(description).toContain('curl -X POST -F');
+    expect(description).toContain('data.upload_id');
+    expect(description).toContain('upl_');
+    await client.close();
+  });
+
   it('rejects a call with no filename', async () => {
     mockPreparedUpload();
 

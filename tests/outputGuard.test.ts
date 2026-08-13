@@ -14,6 +14,7 @@ import * as svgmakerService from '../src/services/svgmakerService.js';
 import { handleGenerateTool } from '../src/tools/generateTool.js';
 import { handleEditTool } from '../src/tools/editTool.js';
 import { handleGenerationsDownloadTool } from '../src/tools/generationsTool.js';
+import { handleGalleryDownloadTool } from '../src/tools/galleryTool.js';
 import { handlePreviewTool } from '../src/tools/previewTool.js';
 import { HTTP_OUTPUT_PATH_ERROR } from '../src/utils/outputUtils.js';
 import { HTTP_LOCAL_PREVIEW_ERROR } from '../src/utils/previewUtils.js';
@@ -84,6 +85,43 @@ describe('output_path guard over the HTTPS transport', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toBe(HTTP_OUTPUT_PATH_ERROR);
     expect(svgmakerService.downloadGeneration).not.toHaveBeenCalled();
+  });
+
+  it('rejects output_path for svgmaker_gallery_download without calling the API', async () => {
+    const result = await handleGalleryDownloadTool(
+      server,
+      call('svgmaker_gallery_download', {
+        generation_id: 'gen_abc123',
+        output_path: '/Users/me/Desktop/panda.svg',
+      }),
+      undefined,
+      HTTP
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe(HTTP_OUTPUT_PATH_ERROR);
+    expect(svgmakerService.downloadGalleryItem).not.toHaveBeenCalled();
+  });
+
+  it('still guards a stale client that sends output_path it was never offered', async () => {
+    const result = await handleGenerationsDownloadTool(
+      server,
+      call('svgmaker_generations_download', {
+        generation_id: 'gen_abc123',
+        output_path: '/Users/me/Desktop/panda.svg',
+        format: 'svg',
+      }),
+      undefined,
+      HTTP
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe(HTTP_OUTPUT_PATH_ERROR);
+  });
+
+  it('names the next step in the rejection message', () => {
+    expect(HTTP_OUTPUT_PATH_ERROR).toContain('without output_path');
+    expect(HTTP_OUTPUT_PATH_ERROR).toContain('URL');
   });
 
   it('returns a hosted URL when no output_path is given', async () => {

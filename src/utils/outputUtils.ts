@@ -2,7 +2,7 @@ import { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolContext } from '../types/toolContext.js';
 
 export const HTTP_OUTPUT_PATH_ERROR =
-  'output_path is not supported over the HTTPS transport — the result is returned as a URL.';
+  'output_path is not supported over the HTTPS transport. Call the tool again without output_path: the result comes back as an SVGMaker-hosted URL, and you should give that URL to the user or fetch it yourself.';
 
 /**
  * Reject `output_path` over HTTP. Writing it would auto-create directories inside

@@ -12,16 +12,22 @@ const UploadToolInputSchema = z.object({
     .string()
     .min(1, 'Filename cannot be empty.')
     .describe(
-      'Name of the local file you are about to upload, including its extension, e.g. "logo.png".'
+      'Name of the local file you are about to upload, with its extension, e.g. "logo.png". Name only, not a path — the file bytes are never sent to this tool.'
     ),
 });
 
-export const uploadToolDefinition = {
-  name: 'svgmaker_upload',
-  description:
-    'Prepares a short-lived upload URL so a local file can be used with svgmaker_edit, svgmaker_convert or svgmaker_remove_background over HTTPS. Upload the file with the returned curl command; its response contains the upload id to use as `input`.',
-  inputSchema: zodToJsonSchema(UploadToolInputSchema),
-};
+export function buildUploadToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_upload',
+    description:
+      'Create a short-lived upload URL so a local image can be used with svgmaker_edit, svgmaker_convert or svgmaker_remove_background over HTTPS. This tool only mints the URL — you must upload the bytes yourself, in three steps. ' +
+      '1. Call this tool with the file name: {"filename": "logo.png"}. It returns upload_url and expires_in. ' +
+      '2. Send the file to that URL yourself: curl -X POST -F "file=@/Users/me/logo.png" "<upload_url>". ' +
+      '3. Read data.upload_id from the JSON response, e.g. "upl_2f1c8a4e-6b3d-4c9a-8e7f-0a1b2c3d4e5f", and pass it as input: {"input": "upl_2f1c8a4e-6b3d-4c9a-8e7f-0a1b2c3d4e5f", "prompt": "make it blue"}. ' +
+      'Upload immediately, the URL expires within minutes. Do not call this for an https:// image URL or an SVGMaker generation id — pass those straight as input.',
+    inputSchema: zodToJsonSchema(UploadToolInputSchema),
+  };
+}
 
 export async function handleUploadTool(
   server: Server,

@@ -12,6 +12,7 @@ import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.j
 import {
   applyImageInput,
   INPUT_PARAM_DESCRIPTION,
+  INPUT_PARAM_DESCRIPTION_HTTP,
   resolveImageInput,
   selectImageSource,
 } from '../utils/inputResolver.js';
@@ -37,7 +38,7 @@ const RemoveBackgroundToolInputSchema = z.object({
     .min(1, 'Output path cannot be empty.')
     .optional()
     .describe(
-      'Optional absolute file path where the background-removed SVG will be saved (must include the .svg extension). When provided, the tool saves the SVG locally. When omitted, the tool returns a SVGMaker-hosted URL instead of writing to disk (cloud mode). Example: "/Users/username/Documents/cutout.svg"'
+      'Optional absolute file path to save the cutout SVG locally. Must include the .svg extension. Example: "/Users/username/Documents/cutout.svg". Omit it to get a hosted SVGMaker URL instead of a file.'
     ),
   storage: z
     .boolean()
@@ -47,12 +48,34 @@ const RemoveBackgroundToolInputSchema = z.object({
     ),
 });
 
-export const removeBackgroundToolDefinition = {
-  name: 'svgmaker_remove_background',
-  description:
-    'Removes the background from an image and returns the result as a clean SVG with transparency, using the SVGMaker API. The AI isolates the foreground subject, removes the background, and vectorizes the result. The image comes from `input`, which accepts a local file path (stdio only), an https:// URL, an upl_ upload id, or a generation id. Saves the SVG to output_path when given, otherwise returns a hosted URL.',
-  inputSchema: zodToJsonSchema(RemoveBackgroundToolInputSchema),
-};
+// input_path is local-path-only, so over HTTP it is dropped alongside output_path.
+const RemoveBackgroundToolHttpSchema = RemoveBackgroundToolInputSchema.omit({
+  output_path: true,
+  input_path: true,
+}).extend({
+  input: z
+    .string()
+    .min(1, 'Input cannot be empty.')
+    .optional()
+    .describe(INPUT_PARAM_DESCRIPTION_HTTP),
+});
+
+const REMOVE_BACKGROUND_DESCRIPTION_STDIO =
+  'Remove the background from an image and return the subject as a transparent SVG. Use this to cut out a subject; use svgmaker_edit for any other change. The image comes from `input`, which accepts a local absolute file path, an https:// URL, an upl_ upload id, or a generation id. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
+
+const REMOVE_BACKGROUND_DESCRIPTION_HTTP =
+  'Remove the background from an image and return the subject as a transparent SVG. Use this to cut out a subject; use svgmaker_edit for any other change. The image comes from `input`, which accepts an https:// URL, an upl_ upload id from svgmaker_upload, or a generation id. Returns a hosted SVGMaker URL for the cutout, plus its expiry. To save it locally, download that URL yourself before it expires.';
+
+export function buildRemoveBackgroundToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_remove_background',
+    description: isHttp ? REMOVE_BACKGROUND_DESCRIPTION_HTTP : REMOVE_BACKGROUND_DESCRIPTION_STDIO,
+    inputSchema: zodToJsonSchema(
+      isHttp ? RemoveBackgroundToolHttpSchema : RemoveBackgroundToolInputSchema
+    ),
+  };
+}
 
 export async function handleRemoveBackgroundTool(
   server: Server,

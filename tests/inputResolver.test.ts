@@ -110,6 +110,7 @@ describe('resolveImageInput', () => {
     await expect(resolveImageInput({ value: localImage }, HTTP)).rejects.toThrow(
       HTTP_LOCAL_PATH_ERROR
     );
+    expect(HTTP_LOCAL_PATH_ERROR).toContain('svgmaker_upload');
   });
 
   it('passes an https URL through on both transports', async () => {

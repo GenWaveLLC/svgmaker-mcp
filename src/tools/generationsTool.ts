@@ -14,23 +14,25 @@ import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.j
 // ── Generations List Tool ──
 
 const GenerationsListToolInputSchema = z.object({
-  page: z.number().int().positive().optional().describe('Page number (1-indexed)'),
-  limit: z.number().int().min(1).max(100).optional().describe('Items per page (1-100)'),
+  page: z.number().int().positive().optional().describe('Page number, 1-indexed. Defaults to 1.'),
+  limit: z.number().int().min(1).max(100).optional().describe('Items per page, 1 to 100.'),
   type: z
     .string()
     .optional()
-    .describe('Filter by generation type (e.g., "generate", "edit", "convert")'),
-  hashtags: z.array(z.string()).optional().describe('Filter by hashtags'),
-  categories: z.array(z.string()).optional().describe('Filter by categories'),
-  query: z.string().optional().describe('Search query for prompt/description'),
+    .describe('Keep only this generation type: "generate", "edit", "convert".'),
+  hashtags: z.array(z.string()).optional().describe('Keep only items carrying all these hashtags.'),
+  categories: z.array(z.string()).optional().describe('Keep only items in these categories.'),
+  query: z.string().optional().describe('Free-text search over the prompt and description.'),
 });
 
-export const generationsListToolDefinition = {
-  name: 'svgmaker_generations_list',
-  description:
-    'Lists your SVG generations with optional filtering and pagination. Returns generation IDs that can be used with other generation tools.',
-  inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
-};
+export function buildGenerationsListToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_generations_list',
+    description:
+      'List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, _download, _share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.',
+    inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
+  };
+}
 
 export async function handleGenerationsListTool(
   server: Server,
@@ -90,15 +92,20 @@ export async function handleGenerationsListTool(
 // ── Generations Get Tool ──
 
 const GenerationsGetToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of one of your generations, as returned by svgmaker_generations_list.'),
 });
 
-export const generationsGetToolDefinition = {
-  name: 'svgmaker_generations_get',
-  description:
-    'Gets detailed information about a specific generation by ID, including the prompt used, type, quality level, visibility status, hashtags, and categories.',
-  inputSchema: zodToJsonSchema(GenerationsGetToolInputSchema),
-};
+export function buildGenerationsGetToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_generations_get',
+    description:
+      'Get the details of one of your generations by id: the prompt used, type, quality, public/private state, hashtags and categories. Returns metadata as text, not the image — use svgmaker_generations_preview to see the image itself.',
+    inputSchema: zodToJsonSchema(GenerationsGetToolInputSchema),
+  };
+}
 
 export async function handleGenerationsGetTool(
   server: Server,
@@ -148,15 +155,20 @@ export async function handleGenerationsGetTool(
 // ── Generations Delete Tool ──
 
 const GenerationsDeleteToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of the generation to delete permanently.'),
 });
 
-export const generationsDeleteToolDefinition = {
-  name: 'svgmaker_generations_delete',
-  description:
-    'Deletes a generation and its associated files. This action is permanent and cannot be undone. Requires a paid account.',
-  inputSchema: zodToJsonSchema(GenerationsDeleteToolInputSchema),
-};
+export function buildGenerationsDeleteToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_generations_delete',
+    description:
+      'Delete one of your generations and its files. The deletion is permanent and cannot be undone, so confirm the exact id with the user before you call this. Requires a paid account. Returns a confirmation message.',
+    inputSchema: zodToJsonSchema(GenerationsDeleteToolInputSchema),
+  };
+}
 
 export async function handleGenerationsDeleteTool(
   server: Server,
@@ -190,15 +202,20 @@ export async function handleGenerationsDeleteTool(
 // ── Generations Share Tool ──
 
 const GenerationsShareToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of the generation to make public.'),
 });
 
-export const generationsShareToolDefinition = {
-  name: 'svgmaker_generations_share',
-  description:
-    'Shares a generation by making it publicly accessible. Returns the public share URL.',
-  inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
-};
+export function buildGenerationsShareToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_generations_share',
+    description:
+      'Make one of your generations publicly visible and return its permanent share URL. Use this when the user wants a link other people can open. This exposes the image publicly, so ask first if the intent is unclear.',
+    inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
+  };
+}
 
 export async function handleGenerationsShareTool(
   server: Server,
@@ -238,27 +255,44 @@ export async function handleGenerationsShareTool(
 // ── Generations Download Tool ──
 
 const GenerationsDownloadToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of one of your generations, as returned by svgmaker_generations_list.'),
   output_path: z
     .string()
     .min(1, 'Output path cannot be empty.')
     .optional()
     .describe(
-      'Optional absolute file path where the downloaded file will be saved. When provided, the tool saves the file locally. When omitted, the tool returns a SVGMaker-hosted download URL instead of writing to disk (cloud mode).'
+      'Absolute file path to save the download to, e.g. "/Users/me/Desktop/panda.svg". Give it the extension that matches format. Omit it to get an SVGMaker-hosted download URL instead of a file. Stdio transport only.'
     ),
   format: z
     .enum(['svg', 'webp', 'png', 'svg-optimized', 'svgz'])
     .optional()
-    .describe('Download format. Defaults to webp.'),
-  optimize: z.boolean().optional().describe('Optimize before compressing (only for svgz format).'),
+    .describe(
+      'Output format: svg (source vector), svg-optimized (smaller vector), svgz (gzipped vector), png or webp (raster). Defaults to webp.'
+    ),
+  optimize: z
+    .boolean()
+    .optional()
+    .describe('Optimize the vector before gzip compression. Applies to the svgz format only.'),
 });
 
-export const generationsDownloadToolDefinition = {
-  name: 'svgmaker_generations_download',
-  description:
-    'Downloads a generation in the specified format and saves it to a local file. Supports SVG, WebP, PNG, optimized SVG, and SVGZ formats. Requires a paid account.',
-  inputSchema: zodToJsonSchema(GenerationsDownloadToolInputSchema),
-};
+export function buildGenerationsDownloadToolDefinition(ctx: ToolContext) {
+  const isHttp = ctx.transport === 'http';
+  return {
+    name: 'svgmaker_generations_download',
+    description: isHttp
+      ? 'Download one of your generations in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_generations_preview instead when you only need to look at the image.'
+      : 'Download one of your generations in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Use svgmaker_generations_preview instead when you only need to look at the image.',
+    // The runtime schema keeps output_path so the guard can answer a stale client.
+    inputSchema: zodToJsonSchema(
+      isHttp
+        ? GenerationsDownloadToolInputSchema.omit({ output_path: true })
+        : GenerationsDownloadToolInputSchema
+    ),
+  };
+}
 
 export async function handleGenerationsDownloadTool(
   server: Server,
@@ -337,15 +371,20 @@ export async function handleGenerationsDownloadTool(
 // ── Generations Preview Tool ──
 
 const GenerationsPreviewToolInputSchema = z.object({
-  generation_id: z.string().min(1, 'Generation ID is required'),
+  generation_id: z
+    .string()
+    .min(1, 'Generation ID is required')
+    .describe('Id of one of your generations, as returned by svgmaker_generations_list.'),
 });
 
-export const generationsPreviewToolDefinition = {
-  name: 'svgmaker_generations_preview',
-  description:
-    'Previews a generation by returning the image directly in the chat context as a PNG image. Use this to visually inspect a generation without saving it to disk.',
-  inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
-};
+export function buildGenerationsPreviewToolDefinition(_ctx: ToolContext) {
+  return {
+    name: 'svgmaker_generations_preview',
+    description:
+      'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
+    inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
+  };
+}
 
 export async function handleGenerationsPreviewTool(
   server: Server,

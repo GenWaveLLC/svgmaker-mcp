@@ -13,10 +13,18 @@ export const GENERATION_ID_UNSUPPORTED_ERROR =
   'Generation ids are not supported for convert, because it would re-vectorize a downscaled preview. Pass a local file path (stdio only), an https:// URL, or an upl_ upload id.';
 
 export const INPUT_PARAM_DESCRIPTION =
-  'Image source. Accepts a local absolute file path (stdio transport only), an https:// URL, an upl_ upload id returned after uploading a local file, or an SVGMaker generation id (your own generations or public gallery items). Over HTTPS, call svgmaker_upload first for a local file.';
+  'Image source. Accepts a local absolute file path, an https:// URL, an upl_ upload id, or an SVGMaker generation id (your own generations or public gallery items).';
 
 export const NO_GENERATION_INPUT_PARAM_DESCRIPTION =
-  'Image source. Accepts a local absolute file path (stdio transport only), an https:// URL, or an upl_ upload id returned after uploading a local file. Generation ids are not accepted. Over HTTPS, call svgmaker_upload first for a local file.';
+  'Image source. Accepts a local absolute file path, an https:// URL, or an upl_ upload id. Generation ids are not accepted.';
+
+// The HTTP variants never mention local paths. An agent that reads only the first
+// clause would otherwise send one and get rejected.
+export const INPUT_PARAM_DESCRIPTION_HTTP =
+  'Image source. Accepts an https:// URL, an upl_ upload id from svgmaker_upload, or an SVGMaker generation id (your own generations or public gallery items). For a file on the user machine, call svgmaker_upload first and pass the upl_ id it gives you.';
+
+export const NO_GENERATION_INPUT_PARAM_DESCRIPTION_HTTP =
+  'Image source. Accepts an https:// URL or an upl_ upload id from svgmaker_upload. Generation ids are not accepted. For a file on the user machine, call svgmaker_upload first and pass the upl_ id it gives you.';
 
 export type InputKind = 'path' | 'url' | 'upload' | 'generation';
 

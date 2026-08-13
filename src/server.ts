@@ -2,43 +2,43 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from './types/toolContext.js';
-import { generateToolDefinition, handleGenerateTool } from './tools/generateTool.js';
-import { editToolDefinition, handleEditTool } from './tools/editTool.js';
-import { convertToolDefinition, handleConvertTool } from './tools/convertTool.js';
+import { buildGenerateToolDefinition, handleGenerateTool } from './tools/generateTool.js';
+import { buildEditToolDefinition, handleEditTool } from './tools/editTool.js';
+import { buildConvertToolDefinition, handleConvertTool } from './tools/convertTool.js';
 import {
-  removeBackgroundToolDefinition,
+  buildRemoveBackgroundToolDefinition,
   handleRemoveBackgroundTool,
 } from './tools/removeBackgroundTool.js';
 import {
-  accountInfoToolDefinition,
+  buildAccountInfoToolDefinition,
   handleAccountInfoTool,
-  accountUsageToolDefinition,
+  buildAccountUsageToolDefinition,
   handleAccountUsageTool,
 } from './tools/accountTool.js';
 import {
-  generationsListToolDefinition,
+  buildGenerationsListToolDefinition,
   handleGenerationsListTool,
-  generationsGetToolDefinition,
+  buildGenerationsGetToolDefinition,
   handleGenerationsGetTool,
-  generationsDeleteToolDefinition,
+  buildGenerationsDeleteToolDefinition,
   handleGenerationsDeleteTool,
-  generationsShareToolDefinition,
+  buildGenerationsShareToolDefinition,
   handleGenerationsShareTool,
-  generationsDownloadToolDefinition,
+  buildGenerationsDownloadToolDefinition,
   handleGenerationsDownloadTool,
-  generationsPreviewToolDefinition,
+  buildGenerationsPreviewToolDefinition,
   handleGenerationsPreviewTool,
 } from './tools/generationsTool.js';
-import { previewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
-import { uploadToolDefinition, handleUploadTool } from './tools/uploadTool.js';
+import { buildPreviewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
+import { buildUploadToolDefinition, handleUploadTool } from './tools/uploadTool.js';
 import {
-  galleryListToolDefinition,
+  buildGalleryListToolDefinition,
   handleGalleryListTool,
-  galleryGetToolDefinition,
+  buildGalleryGetToolDefinition,
   handleGalleryGetTool,
-  galleryDownloadToolDefinition,
+  buildGalleryDownloadToolDefinition,
   handleGalleryDownloadTool,
-  galleryPreviewToolDefinition,
+  buildGalleryPreviewToolDefinition,
   handleGalleryPreviewTool,
 } from './tools/galleryTool.js';
 
@@ -72,24 +72,26 @@ export function createMcpServer(
       tools: [
         // Uploads only exist to get a local file to the cloud; over stdio the tools
         // read local paths directly, so the tool would only ever mislead.
-        ...(ctx.transport === 'http' ? [uploadToolDefinition] : []),
-        generateToolDefinition,
-        editToolDefinition,
-        convertToolDefinition,
-        removeBackgroundToolDefinition,
-        accountInfoToolDefinition,
-        accountUsageToolDefinition,
-        generationsListToolDefinition,
-        generationsGetToolDefinition,
-        generationsDeleteToolDefinition,
-        generationsShareToolDefinition,
-        generationsDownloadToolDefinition,
-        generationsPreviewToolDefinition,
-        previewToolDefinition,
-        galleryListToolDefinition,
-        galleryGetToolDefinition,
-        galleryDownloadToolDefinition,
-        galleryPreviewToolDefinition,
+        ...(ctx.transport === 'http' ? [buildUploadToolDefinition(ctx)] : []),
+        buildGenerateToolDefinition(ctx),
+        buildEditToolDefinition(ctx),
+        buildConvertToolDefinition(ctx),
+        buildRemoveBackgroundToolDefinition(ctx),
+        buildAccountInfoToolDefinition(ctx),
+        buildAccountUsageToolDefinition(ctx),
+        buildGenerationsListToolDefinition(ctx),
+        buildGenerationsGetToolDefinition(ctx),
+        buildGenerationsDeleteToolDefinition(ctx),
+        buildGenerationsShareToolDefinition(ctx),
+        buildGenerationsDownloadToolDefinition(ctx),
+        buildGenerationsPreviewToolDefinition(ctx),
+        // svgmaker_preview only reads local disk, so over HTTP it can never succeed;
+        // svgmaker_generations_preview / svgmaker_gallery_preview cover that transport.
+        ...(ctx.transport === 'http' ? [] : [buildPreviewToolDefinition(ctx)]),
+        buildGalleryListToolDefinition(ctx),
+        buildGalleryGetToolDefinition(ctx),
+        buildGalleryDownloadToolDefinition(ctx),
+        buildGalleryPreviewToolDefinition(ctx),
       ],
     };
   });
