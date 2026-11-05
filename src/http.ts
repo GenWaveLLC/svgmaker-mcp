@@ -29,6 +29,10 @@ const API_RESOURCE = (process.env.SVGMAKER_API_RESOURCE || 'https://api.svgmaker
 // `kid` miss, so we don't need our own token/JWKS cache here.
 const JWKS = createRemoteJWKSet(new URL(`${AUTH_SERVER}/.well-known/jwks.json`));
 
+// The MCP endpoints. /chatgpt/mcp serves the same tools plus ChatGPT's result
+// card; /mcp stays plain for every other client (Claude, Cursor, ...).
+const MCP_PATHS = ['/mcp', '/chatgpt/mcp'];
+
 /**
  * Send a JSON response. Safe no-op if headers were already sent.
  */
@@ -84,9 +88,14 @@ function getResourceUrl(req: IncomingMessage): string {
  * metadata. This WWW-Authenticate header is exactly what makes ChatGPT/Claude/Cursor
  * pop open the browser login flow instead of just erroring out.
  */
-function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: string): void {
+function sendUnauthorized(
+  res: ServerResponse,
+  req: IncomingMessage,
+  path: string,
+  message: string
+): void {
   if (res.headersSent) return;
-  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource/mcp`;
+  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource${path}`;
   res.writeHead(401, {
     'Content-Type': 'application/json',
     'WWW-Authenticate': `Bearer resource_metadata="${metadataUrl}"`,
@@ -143,14 +152,15 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
 }
 
 /**
- * Handle a `POST /mcp` request: authenticate, build a per-request client and a
- * fresh stateless MCP server, then delegate to the Streamable HTTP transport.
+ * Handle a `POST` to an MCP endpoint (`path`): authenticate, build a per-request
+ * client and a fresh stateless MCP server, then delegate to the Streamable HTTP
+ * transport.
  */
-async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   // a. Extract the Bearer access token. A missing token gets the browser-flow 401.
   const token = extractBearerToken(req);
   if (!token) {
-    sendUnauthorized(res, req, 'Missing OAuth access token');
+    sendUnauthorized(res, req, path, 'Missing OAuth access token');
     return;
   }
 
@@ -158,10 +168,10 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
   //     real work. A failed verification gets the browser-flow 401 too.
   const userId = await verifyAccessToken(token);
   if (!userId) {
-    sendUnauthorized(res, req, 'Invalid or expired OAuth access token');
+    sendUnauthorized(res, req, path, 'Invalid or expired OAuth access token');
     return;
   }
-  logToFile(`Authenticated /mcp request for user ${userId}`);
+  logToFile(`Authenticated ${path} request for user ${userId}`);
 
   // b. Read and parse the request body.
   let parsedBody: unknown;
@@ -183,7 +193,10 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
   );
 
   // d. Build a fresh server.
-  const server = createMcpServer(client, { transport: 'http' });
+  const server = createMcpServer(client, {
+    transport: 'http',
+    chatgpt: path === '/chatgpt/mcp',
+  });
 
   // e. Create a stateless transport and wire it up.
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -218,11 +231,11 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
     return;
   }
 
-  if (req.method === 'POST' && url === '/mcp') {
+  if (req.method === 'POST' && MCP_PATHS.includes(url)) {
     try {
-      await handleMcp(req, res);
+      await handleMcp(req, res, url);
     } catch (err) {
-      logToFile(`Error handling /mcp request: ${err instanceof Error ? err.stack : String(err)}`);
+      logToFile(`Error handling ${url} request: ${err instanceof Error ? err.stack : String(err)}`);
       sendJson(res, 500, { error: 'Internal server error' });
     }
     return;
@@ -230,18 +243,20 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
 
   // OAuth Protected Resource Metadata (RFC 9728). Clients fetch this to discover
   // which Authorization Server can log the user in, which kicks off the browser
-  // flow. We serve it at BOTH the root path and the `/mcp` path-suffixed location:
-  // some clients (Claude Code) probe the root, others (ChatGPT) follow RFC 9728
-  // and probe `/.well-known/oauth-protected-resource/mcp`. The `resource` we
-  // return matches the path so it points at the same MCP endpoint either way.
-  if (
-    req.method === 'GET' &&
-    (url === '/.well-known/oauth-protected-resource' ||
-      url === '/.well-known/oauth-protected-resource/mcp')
-  ) {
+  // flow. We serve it at the root path and at each endpoint's path-suffixed
+  // location: some clients (Claude Code) probe the root, others (ChatGPT) follow
+  // RFC 9728 and probe `/.well-known/oauth-protected-resource/<endpoint path>`.
+  // The `resource` we return matches the path it was asked for.
+  const WELL_KNOWN = '/.well-known/oauth-protected-resource';
+  if (req.method === 'GET' && url.startsWith(WELL_KNOWN)) {
+    const path = url.slice(WELL_KNOWN.length);
+    if (path && !MCP_PATHS.includes(path)) {
+      sendJson(res, 404, { error: 'Not found' });
+      return;
+    }
     const base = getResourceUrl(req);
     sendJson(res, 200, {
-      resource: url.endsWith('/mcp') ? `${base}/mcp` : base,
+      resource: `${base}${path}`,
       authorization_servers: [AUTH_SERVER],
     });
     return;
@@ -254,7 +269,7 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
   // stream after connecting, and a 404 makes them treat the session as dead and
   // tombstone the transport, whereas a 405 tells them to skip the optional
   // stream and continue over POST.
-  if ((req.method === 'GET' || req.method === 'DELETE') && url === '/mcp') {
+  if ((req.method === 'GET' || req.method === 'DELETE') && MCP_PATHS.includes(url)) {
     res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));
     return;

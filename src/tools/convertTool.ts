@@ -8,7 +8,11 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   NO_GENERATION_INPUT_PARAM_DESCRIPTION,
@@ -61,7 +65,9 @@ export function buildConvertToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_convert',
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
     description: isHttp ? CONVERT_DESCRIPTION_HTTP : CONVERT_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
   };
 }
@@ -162,10 +168,14 @@ export async function handleConvertTool(
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return buildUrlResult(
+        return await buildFileResult(
           'Image converted to SVG successfully.',
           result.svgUrl,
-          result.svgUrlExpiresIn
+          'svg',
+          result.svgUrlExpiresIn,
+          result,
+          client,
+          ctx
         );
       }
     } catch (error: any) {

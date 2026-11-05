@@ -31,6 +31,8 @@ import {
 } from './tools/generationsTool.js';
 import { buildPreviewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
 import { buildUploadToolDefinition, handleUploadTool } from './tools/uploadTool.js';
+import { fileToInput, withFileParam } from './chatgpt/files.js';
+import { CHATGPT_INSTRUCTIONS, registerWidgetResources, withWidget } from './chatgpt/widgets.js';
 import {
   buildGalleryListToolDefinition,
   handleGalleryListTool,
@@ -62,17 +64,25 @@ export function createMcpServer(
     {
       capabilities: {
         tools: {},
+        // Widget HTML for ChatGPT (MCP Apps) is served on the ChatGPT endpoint only.
+        ...(ctx.chatgpt ? { resources: {} } : {}),
       },
+      ...(ctx.chatgpt ? { instructions: CHATGPT_INSTRUCTIONS } : {}),
     }
   );
+
+  if (ctx.chatgpt) {
+    registerWidgetResources(server);
+  }
 
   // Set up unified tool handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
       tools: [
         // Uploads only exist to get a local file to the cloud; over stdio the tools
-        // read local paths directly, so the tool would only ever mislead.
-        ...(ctx.transport === 'http' ? [buildUploadToolDefinition(ctx)] : []),
+        // read local paths directly, so the tool would only ever mislead. ChatGPT
+        // can't send the file from its sandbox and passes attached files as `file`.
+        ...(ctx.transport === 'http' && !ctx.chatgpt ? [buildUploadToolDefinition(ctx)] : []),
         buildGenerateToolDefinition(ctx),
         buildEditToolDefinition(ctx),
         buildConvertToolDefinition(ctx),
@@ -92,12 +102,15 @@ export function createMcpServer(
         buildGalleryGetToolDefinition(ctx),
         buildGalleryDownloadToolDefinition(ctx),
         buildGalleryPreviewToolDefinition(ctx),
-      ],
+      ].map((tool) => (ctx.chatgpt ? withFileParam(withWidget(tool)) : tool)),
     };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name } = request.params;
+    if (ctx.chatgpt) {
+      request.params.arguments = fileToInput(request.params.arguments);
+    }
 
     switch (name) {
       case 'svgmaker_generate':
@@ -127,7 +140,7 @@ export function createMcpServer(
       case 'svgmaker_preview':
         return await handlePreviewTool(server, request, client, ctx);
       case 'svgmaker_upload':
-        if (ctx.transport !== 'http') {
+        if (ctx.transport !== 'http' || ctx.chatgpt) {
           throw new Error(
             'svgmaker_upload is only available over the HTTPS transport. Over stdio, pass the local file path directly as `input`.'
           );

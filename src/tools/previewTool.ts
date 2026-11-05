@@ -29,6 +29,7 @@ const PreviewToolInputSchema = z
 export function buildPreviewToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_preview',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Show a local image file (PNG, SVG, WebP or SVGZ) in the conversation as a PNG image. Use this to look at a file already on disk. Works over the stdio transport only, because it reads the local filesystem. To look at an SVGMaker generation or a gallery item, use svgmaker_generations_preview or svgmaker_gallery_preview with an id instead.',
     inputSchema: zodToJsonSchema(PreviewToolInputSchema),

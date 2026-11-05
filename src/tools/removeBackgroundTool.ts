@@ -8,7 +8,11 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   INPUT_PARAM_DESCRIPTION,
@@ -70,7 +74,9 @@ export function buildRemoveBackgroundToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_remove_background',
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
     description: isHttp ? REMOVE_BACKGROUND_DESCRIPTION_HTTP : REMOVE_BACKGROUND_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(
       isHttp ? RemoveBackgroundToolHttpSchema : RemoveBackgroundToolInputSchema
     ),
@@ -177,10 +183,14 @@ export async function handleRemoveBackgroundTool(
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return buildUrlResult(
+        return await buildFileResult(
           'Background removed successfully.',
           result.svgUrl,
-          result.svgUrlExpiresIn
+          'svg',
+          result.svgUrlExpiresIn,
+          result,
+          client,
+          ctx
         );
       }
     } catch (error: any) {

@@ -14,8 +14,9 @@ const AccountInfoToolInputSchema = z.object({});
 export function buildAccountInfoToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_account_info',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
-      'Get the SVGMaker account identity and credit balance: email, display name, account type, and remaining credits. Use this to check credits before a paid operation, or to confirm which account the key belongs to. For per-request counts and credit spend over time, use svgmaker_account_usage instead. Takes no arguments.',
+      'Get the SVGMaker account identity and credit balances: email, display name, account type, premium credits (spent first) and credits. Use this to check credits before a paid operation, or to confirm which account the key belongs to. For per-request counts and credit spend over time, use svgmaker_account_usage instead. Takes no arguments.',
     inputSchema: zodToJsonSchema(AccountInfoToolInputSchema),
   };
 }
@@ -30,13 +31,17 @@ export async function handleAccountInfoTool(
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
-    const result = await svgmakerService.getAccountInfo(client);
+    // The API returns premiumCredits even though the SDK type leaves it out.
+    const result = (await svgmakerService.getAccountInfo(client)) as Awaited<
+      ReturnType<typeof svgmakerService.getAccountInfo>
+    > & { premiumCredits?: number };
 
     const text = [
       'Account Information:',
       `- Email: ${result.email}`,
       `- Display Name: ${result.displayName}`,
       `- Account Type: ${result.accountType}`,
+      `- Premium credits (spent first): ${result.premiumCredits ?? 0}`,
       `- Credits: ${result.credits}`,
     ].join('\n');
 
@@ -84,6 +89,7 @@ const AccountUsageToolInputSchema = z.object({
 export function buildAccountUsageToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_account_usage',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get SVGMaker API usage statistics for the account: request counts, credits used, success and error counts, and breakdowns by category and by day. Use this to answer "how much have I used"; use svgmaker_account_info for the current credit balance. Pick one time window: either days, or a start/end pair, or neither for all-time.',
     inputSchema: zodToJsonSchema(AccountUsageToolInputSchema),

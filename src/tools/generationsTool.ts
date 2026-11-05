@@ -28,6 +28,7 @@ const GenerationsListToolInputSchema = z.object({
 export function buildGenerationsListToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_list',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, _download, _share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.',
     inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
@@ -101,6 +102,7 @@ const GenerationsGetToolInputSchema = z.object({
 export function buildGenerationsGetToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_get',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the details of one of your generations by id: the prompt used, type, quality, public/private state, hashtags and categories. Returns metadata as text, not the image — use svgmaker_generations_preview to see the image itself.',
     inputSchema: zodToJsonSchema(GenerationsGetToolInputSchema),
@@ -164,6 +166,7 @@ const GenerationsDeleteToolInputSchema = z.object({
 export function buildGenerationsDeleteToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_delete',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     description:
       'Delete one of your generations and its files. The deletion is permanent and cannot be undone, so confirm the exact id with the user before you call this. Requires a paid account. Returns a confirmation message.',
     inputSchema: zodToJsonSchema(GenerationsDeleteToolInputSchema),
@@ -211,8 +214,9 @@ const GenerationsShareToolInputSchema = z.object({
 export function buildGenerationsShareToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_share',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description:
-      'Make one of your generations publicly visible and return its permanent share URL. Use this when the user wants a link other people can open. This exposes the image publicly, so ask first if the intent is unclear.',
+      'Make one of your generations publicly visible and return its permanent share URL. Call this only when the user asks to share the image or make it public; never call it on your own, for example to get a link to show the user. To point the user at their own images, link the SVGMaker generations page instead.',
     inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
   };
 }
@@ -282,6 +286,8 @@ export function buildGenerationsDownloadToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_generations_download',
+    // Over stdio it can overwrite output_path; HTTP only returns a hosted URL.
+    annotations: { readOnlyHint: isHttp, destructiveHint: !isHttp, openWorldHint: false },
     description: isHttp
       ? 'Download one of your generations in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_generations_preview instead when you only need to look at the image.'
       : 'Download one of your generations in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Use svgmaker_generations_preview instead when you only need to look at the image.',
@@ -380,6 +386,7 @@ const GenerationsPreviewToolInputSchema = z.object({
 export function buildGenerationsPreviewToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_preview',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
     inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),

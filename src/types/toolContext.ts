@@ -7,6 +7,8 @@
  */
 export interface ToolContext {
   transport: 'stdio' | 'http';
+  /** True on the /chatgpt/mcp endpoint: tools link to widgets, and file results go to the result card. */
+  chatgpt?: boolean;
 }
 
 export const DEFAULT_TOOL_CONTEXT: ToolContext = { transport: 'stdio' };

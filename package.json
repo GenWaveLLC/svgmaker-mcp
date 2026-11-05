@@ -15,7 +15,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "rimraf build && tsc",
+    "build": "rimraf build && tsc && cp -r src/chatgpt/widgets build/chatgpt/",
     "start": "node build/index.js",
     "dev": "tsx watch src/index.ts",
     "prepare": "npm run build",

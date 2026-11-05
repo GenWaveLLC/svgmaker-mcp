@@ -19,6 +19,7 @@ const UploadToolInputSchema = z.object({
 export function buildUploadToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_upload',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     description:
       'Create a short-lived upload URL so a local image can be used with svgmaker_edit, svgmaker_convert or svgmaker_remove_background over HTTPS. This tool only mints the URL — you must upload the bytes yourself, in three steps. ' +
       '1. Call this tool with the file name: {"filename": "logo.png"}. It returns upload_url and expires_in. ' +

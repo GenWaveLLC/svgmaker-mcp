@@ -13,6 +13,16 @@ export async function fetchRemotePreview(downloadUrl: string): Promise<string> {
   return buffer.toString('base64');
 }
 
+/** Fetch a hosted image as a WebP data URL of at most 512px, for the ChatGPT card to keep after the link expires. */
+export async function fetchCardPreview(downloadUrl: string): Promise<string> {
+  const buffer = Buffer.from(await fetchRemotePreview(downloadUrl), 'base64');
+  const webp = await sharp(buffer, { density: 144 })
+    .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer();
+  return `data:image/webp;base64,${webp.toString('base64')}`;
+}
+
 export async function readLocalPreview(filePath: string): Promise<string> {
   const validatedPath = await fileUtils.resolveAndValidatePath(filePath, 'read');
   const fileBuffer = await fileUtils.readFileToBuffer(validatedPath);

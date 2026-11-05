@@ -8,7 +8,11 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 
 const GenerateToolObjectSchema = z.object({
   prompt: z
@@ -124,7 +128,9 @@ export function buildGenerateToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_generate',
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: false },
     description: isHttp ? GENERATE_DESCRIPTION_HTTP : GENERATE_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? GenerateToolHttpSchema : GenerateToolObjectSchema),
   };
 }
@@ -272,16 +278,24 @@ export async function handleGenerateTool(
         await progressManager.sendFinalProgress();
 
         if (validatedArgs.raster && result.imageUrl) {
-          return buildUrlResult(
+          return await buildFileResult(
             'Raster PNG generated successfully.',
             result.imageUrl,
-            result.imageUrlExpiresIn
+            'png',
+            result.imageUrlExpiresIn,
+            result,
+            client,
+            ctx
           );
         } else if (result.svgUrl) {
-          return buildUrlResult(
+          return await buildFileResult(
             'SVG generated successfully.',
             result.svgUrl,
-            result.svgUrlExpiresIn
+            'svg',
+            result.svgUrlExpiresIn,
+            result,
+            client,
+            ctx
           );
         } else {
           throw new Error('SVGMaker API did not return a hosted URL.');

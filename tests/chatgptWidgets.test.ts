@@ -1,0 +1,320 @@
+import { describe, expect, it, vi } from 'vitest';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { createMcpServer } from '../src/server.js';
+import { buildFileResult } from '../src/utils/outputUtils.js';
+import * as svgmakerService from '../src/services/svgmakerService.js';
+
+vi.mock('../src/services/svgmakerService.js', () => ({
+  generateSVG: vi.fn(),
+  editSVG: vi.fn(),
+  convertImageToSVG: vi.fn(),
+  removeBackground: vi.fn(),
+  getAccountInfo: vi.fn(),
+  getGeneration: vi.fn(),
+}));
+
+vi.mock('../src/utils/previewUtils.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/utils/previewUtils.js')>()),
+  fetchCardPreview: vi.fn().mockResolvedValue('data:image/webp;base64,UFJFVklFVw=='),
+}));
+
+const RESULT_CARD_TOOLS = [
+  'svgmaker_generate',
+  'svgmaker_edit',
+  'svgmaker_convert',
+  'svgmaker_remove_background',
+];
+
+const CHATGPT = { transport: 'http', chatgpt: true } as const;
+
+async function connect(ctx: 'stdio' | 'http' | typeof CHATGPT): Promise<Client> {
+  const server = createMcpServer(undefined, typeof ctx === 'string' ? { transport: ctx } : ctx);
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  return client;
+}
+
+describe('safety hints', () => {
+  it('sets all three hints as booleans on every tool, on both transports', async () => {
+    for (const transport of ['stdio', 'http'] as const) {
+      const client = await connect(transport);
+      const { tools } = await client.listTools();
+      for (const tool of tools as Tool[]) {
+        const hints = tool.annotations ?? {};
+        expect(typeof hints.readOnlyHint, `${transport} ${tool.name}`).toBe('boolean');
+        expect(typeof hints.destructiveHint, `${transport} ${tool.name}`).toBe('boolean');
+        expect(typeof hints.openWorldHint, `${transport} ${tool.name}`).toBe('boolean');
+      }
+      await client.close();
+    }
+  });
+
+  it('marks only deletion as destructive over HTTP', async () => {
+    const client = await connect('http');
+    const { tools } = await client.listTools();
+    const destructive = tools.filter((tool) => tool.annotations?.destructiveHint);
+    expect(destructive.map((tool) => tool.name)).toEqual(['svgmaker_generations_delete']);
+    await client.close();
+  });
+});
+
+describe('local file overwrites', () => {
+  it('marks every tool that accepts output_path as destructive over stdio', async () => {
+    const client = await connect('stdio');
+    try {
+      const { tools } = await client.listTools();
+      const writers = tools.filter((tool) => tool.inputSchema.properties?.output_path);
+      expect(writers).toHaveLength(6);
+      for (const tool of writers) {
+        expect(tool.annotations?.destructiveHint, tool.name).toBe(true);
+        expect(tool.annotations?.readOnlyHint, tool.name).toBe(false);
+      }
+    } finally {
+      await client.close();
+    }
+  });
+});
+
+describe('result card widget', () => {
+  it('links the file-making tools to a registered widget on the ChatGPT endpoint', async () => {
+    const client = await connect(CHATGPT);
+    const { tools } = await client.listTools();
+    const { resources } = await client.listResources();
+    for (const name of RESULT_CARD_TOOLS) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      const uri = (tool?._meta as { ui?: { resourceUri?: string } } | undefined)?.ui?.resourceUri;
+      expect(uri, name).toBeDefined();
+      expect(resources.map((resource) => resource.uri)).toContain(uri);
+    }
+    await client.close();
+  });
+
+  it('serves the widget HTML with the MCP Apps MIME type and a CSP', async () => {
+    const client = await connect(CHATGPT);
+    const { resources } = await client.listResources();
+    const { contents } = await client.readResource({ uri: resources[0].uri });
+    const content = contents[0] as { mimeType?: string; text?: string; _meta?: any };
+    expect(content.mimeType).toBe('text/html;profile=mcp-app');
+    expect(content.text).toContain('<html');
+    expect(content._meta.ui.csp.resourceDomains.length).toBeGreaterThan(0);
+    expect(content._meta.ui.domain).toBe('https://mcp.svgmaker.io');
+    await client.close();
+  });
+
+  it.each([
+    ['svgmaker_generate', { prompt: 'a panda' }, 'generateSVG'],
+    ['svgmaker_generate', { prompt: 'a panda', raster: true }, 'generateSVG'],
+    ['svgmaker_edit', { prompt: 'make it blue', generation_id: 'gen1' }, 'editSVG'],
+    ['svgmaker_edit', { prompt: 'make it blue', generation_id: 'gen1', raster: true }, 'editSVG'],
+    ['svgmaker_convert', { input: 'https://svgmaker.io/input.png' }, 'convertImageToSVG'],
+    ['svgmaker_remove_background', { generation_id: 'gen1' }, 'removeBackground'],
+  ] as const)(
+    'validates %s results against the advertised HTTP output schema (%j)',
+    async (name, args, service) => {
+      vi.mocked(svgmakerService[service]).mockResolvedValue({
+        svgUrl: 'https://svgmaker.io/result.svg',
+        imageUrl: 'https://svgmaker.io/result.png',
+        generationId: 'gen2',
+        creditCost: 2,
+      } as any);
+      vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({
+        credits: 5,
+        premiumCredits: 35,
+      } as any);
+      const client = await connect(CHATGPT);
+      try {
+        const { tools } = await client.listTools();
+        expect(tools.find((tool) => tool.name === name)?.outputSchema).toBeDefined();
+        // The MCP client validates successful results against the tool's outputSchema.
+        const result = await client.callTool({ name, arguments: args });
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent).toMatchObject({ generationId: 'gen2' });
+        expect(result._meta?.['svgmaker/file']).toMatchObject({
+          creditsUsed: 2,
+          premiumCredits: 35,
+          credits: 5,
+        });
+        expect(result.structuredContent?.format).toBe(
+          'raster' in args && args.raster ? 'png' : 'svg'
+        );
+      } finally {
+        await client.close();
+      }
+    }
+  );
+
+  it('answers an old result card URI with the current card', async () => {
+    const client = await connect(CHATGPT);
+    const { resources } = await client.listResources();
+    const current = await client.readResource({ uri: resources[0].uri });
+    const old = await client.readResource({ uri: 'ui://svgmaker/result-card-v7.html' });
+    expect(old.contents[0].uri).toBe('ui://svgmaker/result-card-v7.html');
+    expect((old.contents[0] as { text?: string }).text).toBe(
+      (current.contents[0] as { text?: string }).text
+    );
+    await expect(client.readResource({ uri: 'ui://svgmaker/other.html' })).rejects.toThrow();
+    await client.close();
+  });
+
+  it('adds no widget links or resources over stdio', async () => {
+    const client = await connect('stdio');
+    const { tools } = await client.listTools();
+    expect(tools.some((tool) => tool._meta)).toBe(false);
+    expect(tools.some((tool) => tool.outputSchema)).toBe(false);
+    expect(client.getServerCapabilities()?.resources).toBeUndefined();
+    await client.close();
+  });
+
+  it('adds no widget links or resources on the plain HTTP endpoint', async () => {
+    const client = await connect('http');
+    const { tools } = await client.listTools();
+    expect(tools.some((tool) => tool._meta)).toBe(false);
+    expect(client.getServerCapabilities()?.resources).toBeUndefined();
+    await client.close();
+  });
+});
+
+describe('buildFileResult', () => {
+  const args = [
+    'SVG generated successfully.',
+    'https://svgmaker.io/api/files/t',
+    'svg',
+    '12h',
+    { generationId: 'gen1', creditCost: 2 },
+    undefined,
+  ] as const;
+
+  it('over stdio keeps the URL in the text and reads no balances', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockClear();
+    const result = await buildFileResult(...args, { transport: 'stdio' });
+    expect(result.content[0].text).toBe(
+      'SVG generated successfully.\nURL: https://svgmaker.io/api/files/t (URL expires in 12h)'
+    );
+    expect(result.structuredContent).toEqual({ format: 'svg', generationId: 'gen1' });
+    expect(result._meta).toBeUndefined();
+    expect(svgmakerService.getAccountInfo).not.toHaveBeenCalled();
+  });
+
+  it('on the plain HTTP endpoint keeps the URL in the text and reads no balances', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockClear();
+    const result = await buildFileResult(...args, { transport: 'http' });
+    expect(result.content[0].text).toContain('https://svgmaker.io/api/files/t');
+    expect(result._meta).toBeUndefined();
+    expect(svgmakerService.getAccountInfo).not.toHaveBeenCalled();
+  });
+
+  it('on the ChatGPT endpoint links the generations page and gives the file only to the card', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({
+      credits: 5,
+      premiumCredits: 35,
+    } as any);
+    vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: false } as any);
+    const result = await buildFileResult(...args, CHATGPT);
+    expect(result.content[0].text).toMatch(
+      /^SVG generated successfully\.\nSVGMaker generations page: https:\/\/svgmaker\.io\/generations\nThe user sees this file/
+    );
+    const modelSees = JSON.stringify([result.content, result.structuredContent]);
+    expect(modelSees).not.toContain('/api/files/');
+    expect(modelSees).not.toContain('35');
+    expect(modelSees).not.toContain('base64');
+    expect(result.structuredContent).toEqual({ format: 'svg', generationId: 'gen1' });
+    expect(result._meta).toEqual({
+      'svgmaker/file': {
+        url: 'https://svgmaker.io/api/files/t',
+        generationsUrl: 'https://svgmaker.io/generations',
+        preview: 'data:image/webp;base64,UFJFVklFVw==',
+        creditsUsed: 2,
+        premiumCredits: 35,
+        credits: 5,
+      },
+    });
+  });
+
+  it('on the ChatGPT endpoint links the share page of a public generation', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({ credits: 5 } as any);
+    vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: true } as any);
+    const result = await buildFileResult(...args, CHATGPT);
+    expect(result.content[0].text).toContain(
+      'SVGMaker page for this image: https://svgmaker.io/share/gen1'
+    );
+    expect(result._meta?.['svgmaker/file']).toMatchObject({
+      shareUrl: 'https://svgmaker.io/share/gen1',
+    });
+  });
+
+  it('on the ChatGPT endpoint leaves out what it cannot read', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockRejectedValue(new Error('down'));
+    vi.mocked(svgmakerService.getGeneration).mockRejectedValue(new Error('down'));
+    const result = await buildFileResult(...args, CHATGPT);
+    expect(result.content[0].text).toContain('SVGMaker generations page');
+    expect(result._meta?.['svgmaker/file']).toEqual({
+      url: 'https://svgmaker.io/api/files/t',
+      generationsUrl: 'https://svgmaker.io/generations',
+      preview: 'data:image/webp;base64,UFJFVklFVw==',
+      creditsUsed: 2,
+    });
+  });
+});
+
+describe('attached ChatGPT files', () => {
+  const FILE_TOOLS = ['svgmaker_edit', 'svgmaker_convert', 'svgmaker_remove_background'];
+
+  it('declares a full file schema in openai/fileParams on the ChatGPT endpoint only', async () => {
+    const chatgpt = await connect(CHATGPT);
+    const { tools } = await chatgpt.listTools();
+    for (const name of FILE_TOOLS) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      expect(tool?._meta?.['openai/fileParams'], name).toEqual(['file']);
+      const file = (tool?.inputSchema.properties as Record<string, any>).file;
+      expect(Object.keys(file.properties).sort()).toEqual([
+        'download_url',
+        'file_id',
+        'file_name',
+        'mime_type',
+      ]);
+      expect(file.required).toEqual(['download_url', 'file_id']);
+    }
+    expect(tools.some((tool) => tool.name === 'svgmaker_upload')).toBe(false);
+    await chatgpt.close();
+
+    const plain = await connect('http');
+    const plainTools = (await plain.listTools()).tools;
+    expect(plainTools.some((tool) => tool._meta?.['openai/fileParams'])).toBe(false);
+    expect(plainTools.some((tool) => tool.name === 'svgmaker_upload')).toBe(true);
+    await plain.close();
+  });
+
+  it('passes an attached file to the tool as its https input', async () => {
+    vi.mocked(svgmakerService.convertImageToSVG).mockClear();
+    vi.mocked(svgmakerService.convertImageToSVG).mockResolvedValue({
+      svgUrl: 'https://svgmaker.io/result.svg',
+    } as any);
+    vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({ credits: 1 } as any);
+    const client = await connect(CHATGPT);
+    const result = await client.callTool({
+      name: 'svgmaker_convert',
+      arguments: {
+        file: { download_url: 'https://files.example.com/cat.png', file_id: 'file_1' },
+      },
+    });
+    expect(result.isError).not.toBe(true);
+    expect(JSON.stringify(vi.mocked(svgmakerService.convertImageToSVG).mock.calls[0])).toContain(
+      'https://files.example.com/cat.png'
+    );
+    await client.close();
+  });
+});
+
+describe('ChatGPT instructions', () => {
+  it('are sent on the ChatGPT endpoint only', async () => {
+    const chatgpt = await connect(CHATGPT);
+    expect(chatgpt.getInstructions()).toContain('Never show a picture from the web');
+    await chatgpt.close();
+    const plain = await connect('http');
+    expect(plain.getInstructions()).toBeUndefined();
+    await plain.close();
+  });
+});

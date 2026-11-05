@@ -8,7 +8,11 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   INPUT_PARAM_DESCRIPTION,
@@ -152,7 +156,9 @@ export function buildEditToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_edit',
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
     description: isHttp ? EDIT_DESCRIPTION_HTTP : EDIT_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? EditToolHttpSchema : EditToolObjectSchema),
   };
 }
@@ -306,13 +312,25 @@ export async function handleEditTool(
         await progressManager.sendFinalProgress();
 
         if (validatedArgs.raster && result.imageUrl) {
-          return buildUrlResult(
+          return await buildFileResult(
             'Raster PNG edited successfully.',
             result.imageUrl,
-            result.imageUrlExpiresIn
+            'png',
+            result.imageUrlExpiresIn,
+            result,
+            client,
+            ctx
           );
         } else if (result.svgUrl) {
-          return buildUrlResult('SVG edited successfully.', result.svgUrl, result.svgUrlExpiresIn);
+          return await buildFileResult(
+            'SVG edited successfully.',
+            result.svgUrl,
+            'svg',
+            result.svgUrlExpiresIn,
+            result,
+            client,
+            ctx
+          );
         } else {
           throw new Error('SVGMaker API did not return a hosted URL.');
         }

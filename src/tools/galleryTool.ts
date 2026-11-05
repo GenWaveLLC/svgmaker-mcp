@@ -30,6 +30,7 @@ const GalleryListToolInputSchema = z.object({
 export function buildGalleryListToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_gallery_list',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Browse the public SVGMaker gallery and list item ids, with optional filters and pagination. Use this to find reference or inspiration images made by other users. For images the caller made themselves, use svgmaker_generations_list instead. Returns ids and page counts only, not images.',
     inputSchema: zodToJsonSchema(GalleryListToolInputSchema),
@@ -105,6 +106,7 @@ const GalleryGetToolInputSchema = z.object({
 export function buildGalleryGetToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_gallery_get',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the details of a public gallery item by id: the prompt used, type, quality, hashtags and categories. Returns metadata as text, not the image — use svgmaker_gallery_preview to see the image itself.',
     inputSchema: zodToJsonSchema(GalleryGetToolInputSchema),
@@ -186,6 +188,7 @@ export function buildGalleryDownloadToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_gallery_download',
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: false },
     description: isHttp
       ? 'Download a public gallery item in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_gallery_preview instead when you only need to look at the image.'
       : 'Download a public gallery item in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Use svgmaker_gallery_preview instead when you only need to look at the image.',
@@ -284,6 +287,7 @@ const GalleryPreviewToolInputSchema = z.object({
 export function buildGalleryPreviewToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_gallery_preview',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, on any transport, and it costs no credits. Use svgmaker_gallery_download instead when the user wants the file or a URL, and svgmaker_generations_preview for generations the caller made.',
     inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
