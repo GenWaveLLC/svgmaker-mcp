@@ -9,6 +9,7 @@ import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 import {
+  buildErrorResult,
   buildFileResult,
   fileResultOutputSchema,
   rejectOutputPathOverHttp,
@@ -341,9 +342,6 @@ export async function handleEditTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [{ type: 'text', text: `Error editing SVG: ${error.message}` } as TextContent],
-    };
+    return buildErrorResult(`Error editing SVG: ${error.message}`, error, ctx);
   }
 }

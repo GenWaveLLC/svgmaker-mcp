@@ -8,15 +8,27 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v9.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v10.html';
+const LIST_CARD_URI = 'ui://svgmaker/list-card-v1.html';
 
-/** Every widget: its ui:// URI and the built HTML file in ./widgets (copied from svgmaker/chatgpt-plugin). */
+/**
+ * Every widget: its ui:// URI, the built HTML file in ./widgets (copied from
+ * svgmaker/chatgpt-plugin) and what it shows, told to the model so it doesn't repeat it.
+ */
 const WIDGETS = [
   {
     uri: RESULT_CARD_URI,
     file: 'result-card.html',
     name: 'SVGMaker result card',
     description: 'Preview of an image SVGMaker made, with a download button.',
+    shows: 'Shows the image with its credits used, credits left and a download button.',
+  },
+  {
+    uri: LIST_CARD_URI,
+    file: 'list-card.html',
+    name: 'SVGMaker list card',
+    description: 'Thumbnails of SVGMaker images, each opening its SVGMaker page.',
+    shows: 'Shows the images as thumbnails, each opening its SVGMaker page.',
   },
 ];
 
@@ -29,6 +41,8 @@ const TOOL_WIDGETS: Record<string, string> = {
   svgmaker_edit: RESULT_CARD_URI,
   svgmaker_convert: RESULT_CARD_URI,
   svgmaker_remove_background: RESULT_CARD_URI,
+  svgmaker_generations_list: LIST_CARD_URI,
+  svgmaker_gallery_list: LIST_CARD_URI,
 };
 
 // Hosted file URLs (/api/files/...) are served by the same svgmaker.io host that runs OAuth.
@@ -39,14 +53,25 @@ const FILE_ORIGIN = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
 
 /** What ChatGPT's model is told about this server, in the initialize result. */
 export const CHATGPT_INSTRUCTIONS =
-  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. To show one the user asks to see, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with its generation_id; never use another image tool for it.";
+  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. To show one the user asks to see, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with its generation_id; never use another image tool for it. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id, list the image's details or repeat what the card shows.";
 
 /** The user's generations page on that same host. */
 export const GENERATIONS_URL = `${FILE_ORIGIN}/generations`;
 
+/** The public gallery page. */
+export const GALLERY_URL = `${FILE_ORIGIN}/gallery`;
+
+/** The pricing page, where a user out of credits can buy more. */
+export const PRICING_URL = `${FILE_ORIGIN}/pricing`;
+
 /** The public page of a public generation, where anyone can download it. */
 export function shareUrl(generationId: string): string {
   return `${FILE_ORIGIN}/share/${generationId}`;
+}
+
+/** The WebP preview of a public generation; private ones answer 401. */
+export function publicPreviewUrl(generationId: string): string {
+  return `${FILE_ORIGIN}/images/preview/${generationId}`;
 }
 
 /** Add the widget link to a tool definition when the tool has one. */
@@ -87,9 +112,7 @@ export function registerWidgetResources(server: Server): void {
               csp: { connectDomains: [FILE_ORIGIN], resourceDomains: [FILE_ORIGIN] },
               prefersBorder: true,
             },
-            // Tells the model what the card already shows, so it doesn't repeat it.
-            'openai/widgetDescription':
-              'Shows the image with its credits used, credits left and a download button.',
+            'openai/widgetDescription': widget.shows,
             // ChatGPT reads openExternal targets only from the legacy CSP key.
             'openai/widgetCSP': {
               connect_domains: [FILE_ORIGIN],

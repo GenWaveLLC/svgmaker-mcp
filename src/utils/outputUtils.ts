@@ -1,8 +1,14 @@
 import { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import type { ToolContext } from '../types/toolContext.js';
-import { getAccountInfo, getGeneration } from '../services/svgmakerService.js';
-import { GENERATIONS_URL, shareUrl } from '../chatgpt/widgets.js';
+import { downloadGeneration, getAccountInfo, getGeneration } from '../services/svgmakerService.js';
+import {
+  GALLERY_URL,
+  GENERATIONS_URL,
+  PRICING_URL,
+  publicPreviewUrl,
+  shareUrl,
+} from '../chatgpt/widgets.js';
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
@@ -82,7 +88,7 @@ interface FileResponse {
 
 // Without this the model repeats the card below it, sometimes with a stock picture.
 const RESULT_CARD_NOTE =
-  'The user sees this file in an SVGMaker card with its credits and a download button. Reply in one short sentence and give the SVGMaker link above as a plain text link. Do not show the image, describe it, list its details, or mention the generation id or credits.';
+  'The user already sees this file in an SVGMaker card with a download button and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
 
 /**
  * Build a tool result for a hosted file. The text carries the URL, as
@@ -150,5 +156,115 @@ export async function buildFileResult(
     ],
     structuredContent,
     _meta: { [FILE_CARD_META_KEY]: card },
+  };
+}
+
+/** One thumbnail in the ChatGPT list card. */
+export interface ListCardItem {
+  id: string;
+  /** WebP data URL; left out when the image could not be read. */
+  preview?: string;
+  /** The image's public page, or the generations page for a private image. */
+  url: string;
+}
+
+/** What only the ChatGPT list card gets, in the result's `_meta`. */
+export interface ListCard {
+  items: ListCardItem[];
+  /** Where to see every image: the generations page or the gallery. */
+  moreUrl: string;
+}
+
+export const LIST_CARD_META_KEY = 'svgmaker/list';
+
+// Each thumbnail is a fetch (and for a private image an API call), so the card shows only the first few.
+const LIST_CARD_LIMIT = 12;
+const THUMBNAIL_SIZE = 256;
+
+const LIST_CARD_NOTE =
+  'The user already sees these images as thumbnails in an SVGMaker card. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.';
+
+/** A thumbnail for one of the caller's generations: its public preview, else a private download. */
+async function generationThumbnail(id: string, client?: SVGMakerClient): Promise<ListCardItem> {
+  try {
+    const preview = await fetchCardPreview(publicPreviewUrl(id), THUMBNAIL_SIZE);
+    return { id, preview, url: shareUrl(id) };
+  } catch {
+    // A private image has no public preview.
+  }
+  try {
+    const { url } = await downloadGeneration(id, { format: 'webp' }, client);
+    return { id, preview: await fetchCardPreview(url, THUMBNAIL_SIZE), url: GENERATIONS_URL };
+  } catch (error) {
+    logToFile(`Could not make thumbnail for ${id}: ${error}`);
+    return { id, url: GENERATIONS_URL };
+  }
+}
+
+/** A thumbnail for a public gallery item. */
+async function galleryThumbnail(id: string): Promise<ListCardItem> {
+  try {
+    return {
+      id,
+      preview: await fetchCardPreview(publicPreviewUrl(id), THUMBNAIL_SIZE),
+      url: shareUrl(id),
+    };
+  } catch (error) {
+    logToFile(`Could not make thumbnail for ${id}: ${error}`);
+    return { id, url: shareUrl(id) };
+  }
+}
+
+/**
+ * Build a list tool's result. The text lists the ids for the model; on the
+ * ChatGPT endpoint the list card also gets thumbnails of the first few in `_meta`.
+ */
+export async function buildListResult(
+  text: string,
+  ids: string[],
+  source: 'generations' | 'gallery',
+  client: SVGMakerClient | undefined,
+  ctx: ToolContext
+): Promise<{ content: TextContent[]; _meta?: Record<string, ListCard> }> {
+  if (!ctx.chatgpt) {
+    return { content: [{ type: 'text', text } as TextContent] };
+  }
+  const items = await Promise.all(
+    ids
+      .slice(0, LIST_CARD_LIMIT)
+      .map((id) => (source === 'gallery' ? galleryThumbnail(id) : generationThumbnail(id, client)))
+  );
+  const card: ListCard = {
+    items,
+    moreUrl: source === 'gallery' ? GALLERY_URL : GENERATIONS_URL,
+  };
+  return {
+    content: [{ type: 'text', text: `${text}\n${LIST_CARD_NOTE}` } as TextContent],
+    _meta: { [LIST_CARD_META_KEY]: card },
+  };
+}
+
+// ChatGPT shows no card for a failed call, so the model has to pass the link on.
+const OUT_OF_CREDITS_NOTE = `The user does not have enough SVGMaker credits. Tell them in one short sentence and give them this link to get more: ${PRICING_URL}`;
+
+/**
+ * Build the error result of a file-making tool. On the ChatGPT endpoint an
+ * out-of-credits error also tells the model where the user can buy credits.
+ */
+export function buildErrorResult(
+  text: string,
+  error: unknown,
+  ctx: ToolContext
+): { isError: true; content: TextContent[] } {
+  const outOfCredits =
+    ctx.chatgpt && (error as { name?: string } | undefined)?.name === 'InsufficientCreditsError';
+  return {
+    isError: true,
+    content: [
+      {
+        type: 'text',
+        text: outOfCredits ? `${text}\n${OUT_OF_CREDITS_NOTE}` : text,
+      } as TextContent,
+    ],
   };
 }

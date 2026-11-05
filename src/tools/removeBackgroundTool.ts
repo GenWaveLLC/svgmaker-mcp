@@ -9,6 +9,7 @@ import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 import {
+  buildErrorResult,
   buildFileResult,
   fileResultOutputSchema,
   rejectOutputPathOverHttp,
@@ -199,14 +200,6 @@ export async function handleRemoveBackgroundTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text',
-          text: `Error removing background: ${error.message}`,
-        } as TextContent,
-      ],
-    };
+    return buildErrorResult(`Error removing background: ${error.message}`, error, ctx);
   }
 }

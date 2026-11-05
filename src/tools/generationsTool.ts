@@ -9,7 +9,7 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import { buildListResult, buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
 
 // ── Generations List Tool ──
 
@@ -39,7 +39,7 @@ export async function handleGenerationsListTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS LIST TOOL CALLED ==========');
   logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
@@ -72,11 +72,7 @@ export async function handleGenerationsListTool(
     lines.push('');
     lines.push(`Has Next Page: ${p.hasNextPage}`);
 
-    const text = lines.join('\n');
-
-    return {
-      content: [{ type: 'text', text } as TextContent],
-    };
+    return await buildListResult(lines.join('\n'), result.items ?? [], 'generations', client, ctx);
   } catch (error: any) {
     return {
       isError: true,

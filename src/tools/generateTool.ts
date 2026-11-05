@@ -9,6 +9,7 @@ import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 import {
+  buildErrorResult,
   buildFileResult,
   fileResultOutputSchema,
   rejectOutputPathOverHttp,
@@ -307,9 +308,6 @@ export async function handleGenerateTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [{ type: 'text', text: `Error generating SVG: ${error.message}` } as TextContent],
-    };
+    return buildErrorResult(`Error generating SVG: ${error.message}`, error, ctx);
   }
 }

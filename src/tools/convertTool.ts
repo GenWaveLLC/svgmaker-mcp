@@ -9,6 +9,7 @@ import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
 import {
+  buildErrorResult,
   buildFileResult,
   fileResultOutputSchema,
   rejectOutputPathOverHttp,
@@ -184,14 +185,6 @@ export async function handleConvertTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text',
-          text: `Error converting image to SVG: ${error.message}`,
-        } as TextContent,
-      ],
-    };
+    return buildErrorResult(`Error converting image to SVG: ${error.message}`, error, ctx);
   }
 }

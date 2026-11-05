@@ -3,7 +3,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../src/server.js';
-import { buildFileResult } from '../src/utils/outputUtils.js';
+import { buildErrorResult, buildFileResult, buildListResult } from '../src/utils/outputUtils.js';
+import { fetchCardPreview } from '../src/utils/previewUtils.js';
 import * as svgmakerService from '../src/services/svgmakerService.js';
 
 vi.mock('../src/services/svgmakerService.js', () => ({
@@ -13,6 +14,7 @@ vi.mock('../src/services/svgmakerService.js', () => ({
   removeBackground: vi.fn(),
   getAccountInfo: vi.fn(),
   getGeneration: vi.fn(),
+  downloadGeneration: vi.fn(),
 }));
 
 vi.mock('../src/utils/previewUtils.js', async (importOriginal) => ({
@@ -214,7 +216,7 @@ describe('buildFileResult', () => {
     vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: false } as any);
     const result = await buildFileResult(...args, CHATGPT);
     expect(result.content[0].text).toMatch(
-      /^SVG generated successfully\.\nSVGMaker generations page: https:\/\/svgmaker\.io\/generations\nThe user sees this file/
+      /^SVG generated successfully\.\nSVGMaker generations page: https:\/\/svgmaker\.io\/generations\nThe user already sees this file/
     );
     const modelSees = JSON.stringify([result.content, result.structuredContent]);
     expect(modelSees).not.toContain('/api/files/');
@@ -256,6 +258,90 @@ describe('buildFileResult', () => {
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,
     });
+  });
+});
+
+describe('buildListResult', () => {
+  it('outside ChatGPT returns only the text', async () => {
+    const result = await buildListResult('ids', ['a'], 'generations', undefined, {
+      transport: 'http',
+    });
+    expect(result).toEqual({ content: [{ type: 'text', text: 'ids' }] });
+  });
+
+  it('links public generations to their share page and private ones to the generations page', async () => {
+    vi.mocked(fetchCardPreview).mockImplementation(async (url) => {
+      if (url === 'https://svgmaker.io/images/preview/private') throw new Error('HTTP 401');
+      return `data:${url}`;
+    });
+    vi.mocked(svgmakerService.downloadGeneration).mockResolvedValue({
+      url: 'https://svgmaker.io/api/files/p',
+    } as any);
+    const result = await buildListResult(
+      'ids',
+      ['public', 'private'],
+      'generations',
+      undefined,
+      CHATGPT
+    );
+    expect(result.content[0].text).toMatch(/^ids\nThe user already sees these images/);
+    expect(result._meta?.['svgmaker/list']).toEqual({
+      items: [
+        {
+          id: 'public',
+          preview: 'data:https://svgmaker.io/images/preview/public',
+          url: 'https://svgmaker.io/share/public',
+        },
+        {
+          id: 'private',
+          preview: 'data:https://svgmaker.io/api/files/p',
+          url: 'https://svgmaker.io/generations',
+        },
+      ],
+      moreUrl: 'https://svgmaker.io/generations',
+    });
+    vi.mocked(fetchCardPreview).mockResolvedValue('data:image/webp;base64,UFJFVklFVw==');
+  });
+
+  it('shows at most 12 gallery thumbnails and keeps a tile it cannot read', async () => {
+    vi.mocked(fetchCardPreview).mockRejectedValueOnce(new Error('HTTP 404'));
+    const ids = Array.from({ length: 20 }, (_, i) => `g${i}`);
+    const result = await buildListResult('ids', ids, 'gallery', undefined, CHATGPT);
+    const card = result._meta?.['svgmaker/list'];
+    expect(card?.items).toHaveLength(12);
+    expect(card?.items[0]).toEqual({ id: 'g0', url: 'https://svgmaker.io/share/g0' });
+    expect(card?.moreUrl).toBe('https://svgmaker.io/gallery');
+  });
+});
+
+describe('buildErrorResult', () => {
+  const outOfCredits = Object.assign(new Error('Not enough credits'), {
+    name: 'InsufficientCreditsError',
+  });
+
+  it('outside ChatGPT returns only the text', () => {
+    expect(buildErrorResult('Error', outOfCredits, { transport: 'http' })).toEqual({
+      isError: true,
+      content: [{ type: 'text', text: 'Error' }],
+    });
+  });
+
+  it('on the ChatGPT endpoint gives the pricing page when credits ran out', () => {
+    const result = buildErrorResult('Error', outOfCredits, CHATGPT);
+    expect(result.content[0].text).toMatch(/^Error\n.*https:\/\/svgmaker\.io\/pricing$/);
+  });
+
+  it('on the ChatGPT endpoint returns only the text for any other error', () => {
+    expect(buildErrorResult('Error', new Error('timeout'), CHATGPT).content[0].text).toBe('Error');
+  });
+
+  it('is what a failed tool call returns on the ChatGPT endpoint', async () => {
+    vi.mocked(svgmakerService.generateSVG).mockRejectedValue(outOfCredits);
+    const client = await connect(CHATGPT);
+    const result = await client.callTool({ name: 'svgmaker_generate', arguments: { prompt: 'a' } });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('https://svgmaker.io/pricing');
+    await client.close();
   });
 });
 
