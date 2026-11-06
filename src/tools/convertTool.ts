@@ -67,7 +67,11 @@ export function buildConvertToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_convert',
     annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
-    description: isHttp ? CONVERT_DESCRIPTION_HTTP : CONVERT_DESCRIPTION_STDIO,
+    description: ctx.chatgpt
+      ? 'Convert an attached or linked raster image into SVG. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a temporary download link on SVGMaker. Retrying may spend credits again.'
+      : isHttp
+        ? CONVERT_DESCRIPTION_HTTP
+        : CONVERT_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
   };
@@ -83,8 +87,6 @@ export async function handleConvertTool(
 
   // Log that the tool is being called
   logToFile('========== SVG CONVERT TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
   try {
     const validatedArgs = ConvertToolInputSchema.parse(args);

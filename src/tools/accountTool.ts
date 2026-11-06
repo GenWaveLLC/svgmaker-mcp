@@ -28,7 +28,6 @@ export async function handleAccountInfoTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG ACCOUNT INFO TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     // The API returns premiumCredits even though the SDK type leaves it out.
@@ -103,7 +102,6 @@ export async function handleAccountUsageTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG ACCOUNT USAGE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = AccountUsageToolInputSchema.parse(request.params.arguments);

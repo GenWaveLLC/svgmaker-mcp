@@ -44,7 +44,6 @@ export async function handleGalleryListTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY LIST TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryListToolInputSchema.parse(request.params.arguments);
@@ -116,7 +115,6 @@ export async function handleGalleryGetTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY GET TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryGetToolInputSchema.parse(request.params.arguments);
@@ -204,7 +202,6 @@ export async function handleGalleryDownloadTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY DOWNLOAD TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryDownloadToolInputSchema.parse(request.params.arguments);
@@ -297,7 +294,6 @@ export async function handleGalleryPreviewTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GalleryPreviewToolInputSchema.parse(request.params.arguments);

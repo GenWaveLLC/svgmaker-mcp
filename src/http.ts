@@ -171,7 +171,7 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string
     sendUnauthorized(res, req, path, 'Invalid or expired OAuth access token');
     return;
   }
-  logToFile(`Authenticated ${path} request for user ${userId}`);
+  logToFile('Authenticated MCP request');
 
   // b. Read and parse the request body.
   let parsedBody: unknown;
@@ -234,8 +234,8 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
   if (req.method === 'POST' && MCP_PATHS.includes(url)) {
     try {
       await handleMcp(req, res, url);
-    } catch (err) {
-      logToFile(`Error handling ${url} request: ${err instanceof Error ? err.stack : String(err)}`);
+    } catch {
+      logToFile('Error handling MCP request');
       sendJson(res, 500, { error: 'Internal server error' });
     }
     return;

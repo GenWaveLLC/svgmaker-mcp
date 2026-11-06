@@ -54,11 +54,14 @@ describe('safety hints', () => {
     }
   });
 
-  it('marks only deletion as destructive over HTTP', async () => {
+  it('marks only deletion and public sharing as destructive over HTTP', async () => {
     const client = await connect('http');
     const { tools } = await client.listTools();
     const destructive = tools.filter((tool) => tool.annotations?.destructiveHint);
-    expect(destructive.map((tool) => tool.name)).toEqual(['svgmaker_generations_delete']);
+    expect(destructive.map((tool) => tool.name).sort()).toEqual([
+      'svgmaker_generations_delete',
+      'svgmaker_generations_share',
+    ]);
     await client.close();
   });
 });
@@ -161,6 +164,18 @@ describe('result card widget', () => {
     await client.close();
   });
 
+  it('answers an old list card URI with the current card', async () => {
+    const client = await connect(CHATGPT);
+    const { resources } = await client.listResources();
+    const current = await client.readResource({ uri: resources[1].uri });
+    const old = await client.readResource({ uri: 'ui://svgmaker/list-card-v1.html' });
+    expect(old.contents[0].uri).toBe('ui://svgmaker/list-card-v1.html');
+    expect((old.contents[0] as { text?: string }).text).toBe(
+      (current.contents[0] as { text?: string }).text
+    );
+    await client.close();
+  });
+
   it('adds no widget links or resources over stdio', async () => {
     const client = await connect('stdio');
     const { tools } = await client.listTools();
@@ -226,6 +241,7 @@ describe('buildFileResult', () => {
     expect(result._meta).toEqual({
       'svgmaker/file': {
         url: 'https://svgmaker.io/api/files/t',
+        downloadUrl: 'https://svgmaker.io/api/files/t?download=1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
         creditsUsed: 2,
@@ -254,6 +270,7 @@ describe('buildFileResult', () => {
     expect(result.content[0].text).toContain('SVGMaker generations page');
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/api/files/t',
+      downloadUrl: 'https://svgmaker.io/api/files/t?download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,
@@ -326,9 +343,17 @@ describe('buildErrorResult', () => {
     });
   });
 
-  it('on the ChatGPT endpoint gives the pricing page when credits ran out', () => {
+  it('explains insufficient credits without a purchase link', () => {
     const result = buildErrorResult('Error', outOfCredits, CHATGPT);
-    expect(result.content[0].text).toMatch(/^Error\n.*https:\/\/svgmaker\.io\/pricing$/);
+    expect(result.content[0].text).toContain('insufficient credits');
+    expect(result.content[0].text).not.toContain('https://');
+  });
+
+  it('explains insufficient credits when the SDK rethrows it as AbortError', () => {
+    const wrapped = Object.assign(new Error('Insufficient credits'), { name: 'AbortError' });
+    expect(buildErrorResult('Error', wrapped, CHATGPT).content[0].text).toContain(
+      'insufficient credits'
+    );
   });
 
   it('on the ChatGPT endpoint returns only the text for any other error', () => {
@@ -340,7 +365,8 @@ describe('buildErrorResult', () => {
     const client = await connect(CHATGPT);
     const result = await client.callTool({ name: 'svgmaker_generate', arguments: { prompt: 'a' } });
     expect(result.isError).toBe(true);
-    expect(JSON.stringify(result.content)).toContain('https://svgmaker.io/pricing');
+    expect(JSON.stringify(result.content)).toContain('insufficient credits');
+    expect(JSON.stringify(result.content)).not.toContain('/pricing');
     await client.close();
   });
 });

@@ -32,7 +32,14 @@ const DEBUG_ENABLED =
 
 // Ensure log directory exists
 if (DEBUG_ENABLED) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+  fs.mkdirSync(LOG_DIR, { recursive: true, mode: 0o700 });
+  for (const name of fs.readdirSync(LOG_DIR)) {
+    if (!/^mcp-debug-.*\.log$/.test(name)) continue;
+    const file = path.join(LOG_DIR, name);
+    if (fs.statSync(file).mtimeMs < Date.now() - 7 * 24 * 60 * 60 * 1000) {
+      fs.unlinkSync(file);
+    }
+  }
 }
 
 // File logging utility (since console.log interferes with stdio transport)
@@ -41,7 +48,7 @@ export function logToFile(message: string): void {
 
   const timestamp = new Date().toISOString();
   const logEntry = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(LOG_FILE, logEntry);
+  fs.appendFileSync(LOG_FILE, logEntry, { mode: 0o600 });
 }
 
 // Log session start
@@ -68,10 +75,9 @@ export function logSessionEnd(): void {
 }
 
 // Log fatal errors
-export function logFatalError(error: Error): void {
+export function logFatalError(_error: Error): void {
   if (DEBUG_ENABLED) {
-    logToFile(`FATAL ERROR: ${error.message}`);
-    logToFile(`Stack trace: ${error.stack}`);
+    logToFile('MCP server stopped with an error');
   }
 }
 

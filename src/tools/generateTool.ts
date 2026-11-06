@@ -129,8 +129,12 @@ export function buildGenerateToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_generate',
-    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: false },
-    description: isHttp ? GENERATE_DESCRIPTION_HTTP : GENERATE_DESCRIPTION_STDIO,
+    annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
+    description: ctx.chatgpt
+      ? 'Generate a new image from a prompt. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a temporary download link on SVGMaker. Retrying may spend credits again.'
+      : isHttp
+        ? GENERATE_DESCRIPTION_HTTP
+        : GENERATE_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? GenerateToolHttpSchema : GenerateToolObjectSchema),
   };
@@ -146,8 +150,6 @@ export async function handleGenerateTool(
 
   // Log that the tool is being called
   logToFile('========== SVG GENERATE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
   try {
     const validatedArgs = GenerateToolInputSchema.parse(args);

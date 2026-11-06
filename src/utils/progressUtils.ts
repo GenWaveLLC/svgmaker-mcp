@@ -32,7 +32,7 @@ export class ProgressManager {
     // Log progress token availability
     logToFile(`Progress token received: ${this.progressToken !== undefined ? 'YES' : 'NO'}`);
     if (this.progressToken !== undefined) {
-      logToFile(`Progress token value: ${JSON.stringify(this.progressToken)}`);
+      logToFile('Progress token available');
     }
   }
 
@@ -111,8 +111,8 @@ export class ProgressManager {
               message: this.messages.processing,
             },
           })
-          .catch((error) => {
-            logToFile(`Error sending progress notification: ${error.message}`);
+          .catch(() => {
+            logToFile('Error sending progress notification');
           });
       }, 5000); // Send notification every 5 seconds
     }
@@ -175,7 +175,7 @@ export async function sendSimpleProgress(
   message?: string
 ): Promise<void> {
   if (progressToken !== undefined) {
-    logToFile(`Sending progress update: step ${step}/${total}${message ? ` - ${message}` : ''}`);
+    logToFile(`Sending progress update: step ${step}/${total}`);
     await server.notification({
       method: 'notifications/progress',
       params: {

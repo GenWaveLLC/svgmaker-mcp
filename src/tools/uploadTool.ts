@@ -37,7 +37,6 @@ export async function handleUploadTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG UPLOAD TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = UploadToolInputSchema.parse(request.params.arguments);

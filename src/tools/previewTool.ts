@@ -43,7 +43,6 @@ export async function handlePreviewTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG PREVIEW TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = PreviewToolInputSchema.parse(request.params.arguments);

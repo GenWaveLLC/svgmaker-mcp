@@ -2,13 +2,7 @@ import { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import type { ToolContext } from '../types/toolContext.js';
 import { downloadGeneration, getAccountInfo, getGeneration } from '../services/svgmakerService.js';
-import {
-  GALLERY_URL,
-  GENERATIONS_URL,
-  PRICING_URL,
-  publicPreviewUrl,
-  shareUrl,
-} from '../chatgpt/widgets.js';
+import { GALLERY_URL, GENERATIONS_URL, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
@@ -68,6 +62,7 @@ export const fileResultOutputSchema = zodToJsonSchema(FileResultSchema);
 /** What only the ChatGPT result card gets, in the result's `_meta`. The model never sees it. */
 export interface FileCard {
   url: string;
+  downloadUrl?: string;
   generationsUrl: string;
   /** WebP data URL of the image, saved with the chat so the card still shows it after `url` expires. */
   preview?: string;
@@ -117,6 +112,10 @@ export async function buildFileResult(
 
   const card: FileCard = {
     url,
+    downloadUrl:
+      new URL(url).origin === new URL(GENERATIONS_URL).origin
+        ? `${url}${url.includes('?') ? '&' : '?'}download=1`
+        : undefined,
     generationsUrl: GENERATIONS_URL,
     creditsUsed: response.creditCost,
   };
@@ -132,17 +131,17 @@ export async function buildFileResult(
     card.premiumCredits = balances.premiumCredits ?? 0;
     card.credits = balances.credits;
   } else {
-    logToFile(`Could not read credit balances: ${account.reason}`);
+    logToFile('Could not read credit balances');
   }
   if (generation.status === 'rejected') {
-    logToFile(`Could not read generation ${generationId}: ${generation.reason}`);
+    logToFile('Could not read generation');
   } else if (generationId && generation.value?.isPublic) {
     card.shareUrl = shareUrl(generationId);
   }
   if (preview.status === 'fulfilled') {
     card.preview = preview.value;
   } else {
-    logToFile(`Could not make card preview: ${preview.reason}`);
+    logToFile('Could not make card preview');
   }
   const link = card.shareUrl
     ? `SVGMaker page for this image: ${card.shareUrl}`
@@ -195,8 +194,8 @@ async function generationThumbnail(id: string, client?: SVGMakerClient): Promise
   try {
     const { url } = await downloadGeneration(id, { format: 'webp' }, client);
     return { id, preview: await fetchCardPreview(url, THUMBNAIL_SIZE), url: GENERATIONS_URL };
-  } catch (error) {
-    logToFile(`Could not make thumbnail for ${id}: ${error}`);
+  } catch {
+    logToFile('Could not make thumbnail');
     return { id, url: GENERATIONS_URL };
   }
 }
@@ -209,8 +208,8 @@ async function galleryThumbnail(id: string): Promise<ListCardItem> {
       preview: await fetchCardPreview(publicPreviewUrl(id), THUMBNAIL_SIZE),
       url: shareUrl(id),
     };
-  } catch (error) {
-    logToFile(`Could not make thumbnail for ${id}: ${error}`);
+  } catch {
+    logToFile('Could not make thumbnail');
     return { id, url: shareUrl(id) };
   }
 }
@@ -244,26 +243,30 @@ export async function buildListResult(
   };
 }
 
-// ChatGPT shows no card for a failed call, so the model has to pass the link on.
-const OUT_OF_CREDITS_NOTE = `The user does not have enough SVGMaker credits. Tell them in one short sentence and give them this link to get more: ${PRICING_URL}`;
+// Entitlement errors explain availability without directing users into a purchase flow.
+const OUT_OF_CREDITS_NOTE =
+  'This action is unavailable because the connected SVGMaker account has insufficient credits. No image was created. Do not promote purchases or upgrades.';
 
 /**
  * Build the error result of a file-making tool. On the ChatGPT endpoint an
- * out-of-credits error also tells the model where the user can buy credits.
+ * out-of-credits error explains why the requested action is unavailable.
  */
 export function buildErrorResult(
   text: string,
   error: unknown,
   ctx: ToolContext
 ): { isError: true; content: TextContent[] } {
+  // The SDK's retry wrapper rethrows as AbortError with only the message, so match the message too.
+  const err = error as { name?: string; message?: string } | undefined;
   const outOfCredits =
-    ctx.chatgpt && (error as { name?: string } | undefined)?.name === 'InsufficientCreditsError';
+    ctx.chatgpt &&
+    (err?.name === 'InsufficientCreditsError' || /insufficient credits/i.test(err?.message ?? ''));
   return {
     isError: true,
     content: [
       {
         type: 'text',
-        text: outOfCredits ? `${text}\n${OUT_OF_CREDITS_NOTE}` : text,
+        text: outOfCredits ? OUT_OF_CREDITS_NOTE : text,
       } as TextContent,
     ],
   };

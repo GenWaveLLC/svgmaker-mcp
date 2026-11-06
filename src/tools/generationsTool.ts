@@ -42,7 +42,6 @@ export async function handleGenerationsListTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS LIST TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsListToolInputSchema.parse(request.params.arguments);
@@ -112,7 +111,6 @@ export async function handleGenerationsGetTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS GET TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsGetToolInputSchema.parse(request.params.arguments);
@@ -176,7 +174,6 @@ export async function handleGenerationsDeleteTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DELETE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsDeleteToolInputSchema.parse(request.params.arguments);
@@ -210,7 +207,7 @@ const GenerationsShareToolInputSchema = z.object({
 export function buildGenerationsShareToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_share',
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description:
       'Make one of your generations publicly visible and return its permanent share URL. Call this only when the user asks to share the image or make it public; never call it on your own, for example to get a link to show the user. To point the user at their own images, link the SVGMaker generations page instead.',
     inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
@@ -224,7 +221,6 @@ export async function handleGenerationsShareTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS SHARE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsShareToolInputSchema.parse(request.params.arguments);
@@ -303,7 +299,6 @@ export async function handleGenerationsDownloadTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DOWNLOAD TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsDownloadToolInputSchema.parse(request.params.arguments);
@@ -396,7 +391,6 @@ export async function handleGenerationsPreviewTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsPreviewToolInputSchema.parse(request.params.arguments);

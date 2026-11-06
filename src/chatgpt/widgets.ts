@@ -8,8 +8,8 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v10.html';
-const LIST_CARD_URI = 'ui://svgmaker/list-card-v1.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v11.html';
+const LIST_CARD_URI = 'ui://svgmaker/list-card-v2.html';
 
 /**
  * Every widget: its ui:// URI, the built HTML file in ./widgets (copied from
@@ -32,8 +32,9 @@ const WIDGETS = [
   },
 ];
 
-// Saved chats may ask for an older result card; the current card still reads their results.
+// Saved chats may ask for an older card; the current card still reads their results.
 const OLD_RESULT_CARD = /^ui:\/\/svgmaker\/result-card-v\d+\.html$/;
+const OLD_LIST_CARD = /^ui:\/\/svgmaker\/list-card-v\d+\.html$/;
 
 /** Tools that show a widget, by tool name. */
 const TOOL_WIDGETS: Record<string, string> = {
@@ -53,16 +54,13 @@ const FILE_ORIGIN = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
 
 /** What ChatGPT's model is told about this server, in the initialize result. */
 export const CHATGPT_INSTRUCTIONS =
-  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. To show one the user asks to see, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with its generation_id; never use another image tool for it. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id, list the image's details or repeat what the card shows.";
+  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. To show one the user asks to see, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. SVGMaker can edit its saved images using svgmaker_edit with generation_id. Share or delete an image only when explicitly requested. Credit-spending requests may charge again if retried; do not retry after an uncertain outcome without checking saved generations. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id, list the image's details or repeat what the card shows.";
 
 /** The user's generations page on that same host. */
 export const GENERATIONS_URL = `${FILE_ORIGIN}/generations`;
 
 /** The public gallery page. */
 export const GALLERY_URL = `${FILE_ORIGIN}/gallery`;
-
-/** The pricing page, where a user out of credits can buy more. */
-export const PRICING_URL = `${FILE_ORIGIN}/pricing`;
 
 /** The public page of a public generation, where anyone can download it. */
 export function shareUrl(generationId: string): string {
@@ -95,7 +93,8 @@ export function registerWidgetResources(server: Server): void {
     const { uri } = request.params;
     const widget =
       WIDGETS.find((w) => w.uri === uri) ??
-      (OLD_RESULT_CARD.test(uri) ? WIDGETS.find((w) => w.uri === RESULT_CARD_URI) : undefined);
+      (OLD_RESULT_CARD.test(uri) ? WIDGETS.find((w) => w.uri === RESULT_CARD_URI) : undefined) ??
+      (OLD_LIST_CARD.test(uri) ? WIDGETS.find((w) => w.uri === LIST_CARD_URI) : undefined);
     if (!widget) {
       throw new Error(`Unknown resource: ${uri}`);
     }
