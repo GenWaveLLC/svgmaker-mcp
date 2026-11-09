@@ -194,7 +194,7 @@ export const LIST_CARD_META_KEY = 'svgmaker/list';
 
 // Each thumbnail is a fetch (and for a private image an API call), so the card shows only the first few.
 const LIST_CARD_LIMIT = 12;
-const THUMBNAIL_SIZE = 256;
+const THUMBNAIL_SIZE = 384;
 
 const LIST_CARD_NOTE =
   `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, and for the rest of the list, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;

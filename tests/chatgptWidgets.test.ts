@@ -357,7 +357,7 @@ describe('buildListResult', () => {
     expect(one._meta?.['svgmaker/list']?.total).toBe(1);
   });
 
-  it('fetches a single image at full size and thumbnails at 256', async () => {
+  it('fetches a single image at full size and thumbnails at 384', async () => {
     await buildListResult('ids', ['one'], 'gallery', undefined, CHATGPT);
     expect(vi.mocked(fetchCardPreview)).toHaveBeenLastCalledWith(
       'https://svgmaker.io/images/preview/one',
@@ -366,7 +366,7 @@ describe('buildListResult', () => {
     await buildListResult('ids', ['a', 'b'], 'gallery', undefined, CHATGPT);
     expect(vi.mocked(fetchCardPreview)).toHaveBeenLastCalledWith(
       'https://svgmaker.io/images/preview/b',
-      256
+      384
     );
   });
 });
