@@ -241,7 +241,7 @@ describe('buildFileResult', () => {
     expect(result._meta).toEqual({
       'svgmaker/file': {
         url: 'https://svgmaker.io/api/files/t',
-        downloadUrl: 'https://svgmaker.io/api/files/t?download=1',
+        downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
         creditsUsed: 2,
@@ -270,7 +270,7 @@ describe('buildFileResult', () => {
     expect(result.content[0].text).toContain('SVGMaker generations page');
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/api/files/t',
-      downloadUrl: 'https://svgmaker.io/api/files/t?download=1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,

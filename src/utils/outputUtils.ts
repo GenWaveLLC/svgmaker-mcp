@@ -110,10 +110,13 @@ export async function buildFileResult(
     return { ...buildUrlResult(description, url, expiresIn), structuredContent };
   }
 
+  // Download opens the image on the generations page with its download dialog;
+  // without a generation id it saves the file itself.
   const card: FileCard = {
     url,
-    downloadUrl:
-      new URL(url).origin === new URL(GENERATIONS_URL).origin
+    downloadUrl: response.generationId
+      ? `${GENERATIONS_URL}?open=${encodeURIComponent(response.generationId)}&download=1`
+      : new URL(url).origin === new URL(GENERATIONS_URL).origin
         ? `${url}${url.includes('?') ? '&' : '?'}download=1`
         : undefined,
     generationsUrl: GENERATIONS_URL,

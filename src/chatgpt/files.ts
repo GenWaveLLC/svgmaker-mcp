@@ -15,19 +15,37 @@ const OPENAI_FILE_SCHEMA = {
   required: ['download_url', 'file_id'],
 };
 
+// ChatGPT has no svgmaker_upload, so `input` is described without it. Naming what a
+// generation ID is keeps ChatGPT from flagging it as an unexplained outbound value.
+const GENERATION_ID_NOTE =
+  'or the generationId of an SVGMaker result earlier in this chat. A generationId is the ID SVGMaker gave the user\'s own image; it only points at that image and carries no other data.';
+const INPUT_DESCRIPTIONS: Record<string, string> = {
+  svgmaker_edit: `The image to edit when it is not an attached file: an https:// image URL, ${GENERATION_ID_NOTE}`,
+  svgmaker_remove_background: `The image when it is not an attached file: an https:// image URL, ${GENERATION_ID_NOTE}`,
+  svgmaker_convert:
+    'The raster image when it is not an attached file: an https:// image URL. Generation IDs are not accepted.',
+};
+
 interface ToolWithSchema {
   name: string;
   inputSchema: object;
   _meta?: Record<string, unknown>;
 }
 
-/** Add the `file` field and `openai/fileParams` to a tool that takes an attached image. */
+/**
+ * Add the `file` field and `openai/fileParams` to a tool that takes an attached image,
+ * and describe its `input` for ChatGPT.
+ */
 export function withFileParam<T extends ToolWithSchema>(tool: T): T {
   if (!FILE_TOOLS.has(tool.name)) return tool;
-  const schema = tool.inputSchema as { properties?: Record<string, unknown> };
+  const schema = tool.inputSchema as { properties?: Record<string, object> };
+  const input = { ...schema.properties?.input, description: INPUT_DESCRIPTIONS[tool.name] };
   return {
     ...tool,
-    inputSchema: { ...schema, properties: { ...schema.properties, file: OPENAI_FILE_SCHEMA } },
+    inputSchema: {
+      ...schema,
+      properties: { ...schema.properties, input, file: OPENAI_FILE_SCHEMA },
+    },
     _meta: { ...tool._meta, 'openai/fileParams': ['file'] },
   };
 }
