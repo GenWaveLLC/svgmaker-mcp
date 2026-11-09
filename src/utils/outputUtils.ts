@@ -184,7 +184,7 @@ export interface ListCardItem {
 export interface ListCard {
   /** Thumbnails of the first LIST_CARD_LIMIT images. */
   items: ListCardItem[];
-  /** How many images the tool returned; the card counts the ones past `items` in a "+N" tile. */
+  /** How many images the list has across all pages; the card counts the ones past `items` in a "+N" tile. */
   total: number;
   /** Where to see every image: the generations page or the gallery. */
   moreUrl: string;
@@ -197,7 +197,7 @@ const LIST_CARD_LIMIT = 12;
 const THUMBNAIL_SIZE = 256;
 
 const LIST_CARD_NOTE =
-  `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;
+  `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, and for the rest of the list, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;
 
 /**
  * A thumbnail for one of the caller's generations: its public preview, else a
@@ -251,14 +251,16 @@ async function galleryThumbnail(id: string, size?: number): Promise<ListCardItem
 
 /**
  * Build a list tool's result. The text lists the ids for the model; on the
- * ChatGPT endpoint the list card also gets thumbnails of the first few in `_meta`.
+ * ChatGPT endpoint the list card also gets thumbnails of the first few in `_meta`
+ * and `total`, the list's size across all pages.
  */
 export async function buildListResult(
   text: string,
   ids: string[],
   source: 'generations' | 'gallery',
   client: SVGMakerClient | undefined,
-  ctx: ToolContext
+  ctx: ToolContext,
+  total = ids.length
 ): Promise<{ content: TextContent[]; _meta?: Record<string, ListCard> }> {
   if (!ctx.chatgpt) {
     return { content: [{ type: 'text', text } as TextContent] };
@@ -274,7 +276,8 @@ export async function buildListResult(
   );
   const card: ListCard = {
     items,
-    total: ids.length,
+    // A one-image list stays one image, so the card shows it like the result card.
+    total: ids.length === 1 ? 1 : Math.max(total, ids.length),
     moreUrl: source === 'gallery' ? GALLERY_URL : GENERATIONS_URL,
   };
   return {

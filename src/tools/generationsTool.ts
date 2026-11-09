@@ -76,7 +76,14 @@ export async function handleGenerationsListTool(
     lines.push('');
     lines.push(`Has Next Page: ${p.hasNextPage}`);
 
-    return await buildListResult(lines.join('\n'), result.items ?? [], 'generations', client, ctx);
+    return await buildListResult(
+      lines.join('\n'),
+      result.items ?? [],
+      'generations',
+      client,
+      ctx,
+      p.totalItems
+    );
   } catch (error: any) {
     return {
       isError: true,

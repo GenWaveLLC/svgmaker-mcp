@@ -350,6 +350,13 @@ describe('buildListResult', () => {
     expect(card?.moreUrl).toBe('https://svgmaker.io/gallery');
   });
 
+  it('counts the whole list, not just this page, except for a single image', async () => {
+    const page = await buildListResult('ids', ['a', 'b'], 'gallery', undefined, CHATGPT, 500);
+    expect(page._meta?.['svgmaker/list']?.total).toBe(500);
+    const one = await buildListResult('ids', ['a'], 'generations', undefined, CHATGPT, 80);
+    expect(one._meta?.['svgmaker/list']?.total).toBe(1);
+  });
+
   it('fetches a single image at full size and thumbnails at 256', async () => {
     await buildListResult('ids', ['one'], 'gallery', undefined, CHATGPT);
     expect(vi.mocked(fetchCardPreview)).toHaveBeenLastCalledWith(

@@ -80,7 +80,14 @@ export async function handleGalleryListTool(
     lines.push('');
     lines.push(`Has Next Page: ${p.hasNextPage}`);
 
-    return await buildListResult(lines.join('\n'), result.items ?? [], 'gallery', client, ctx);
+    return await buildListResult(
+      lines.join('\n'),
+      result.items ?? [],
+      'gallery',
+      client,
+      ctx,
+      p.totalItems
+    );
   } catch (error: any) {
     return {
       isError: true,
