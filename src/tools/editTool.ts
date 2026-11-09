@@ -159,7 +159,7 @@ export function buildEditToolDefinition(ctx: ToolContext) {
     name: 'svgmaker_edit',
     annotations: { readOnlyHint: false, destructiveHint: !isHttp, openWorldHint: true },
     description: ctx.chatgpt
-      ? 'Edit an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a temporary download link on SVGMaker. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      ? 'Edit an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a Download button that opens the image on SVGMaker; downloading the file needs a paid SVGMaker plan. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
       : isHttp
         ? EDIT_DESCRIPTION_HTTP
         : EDIT_DESCRIPTION_STDIO,

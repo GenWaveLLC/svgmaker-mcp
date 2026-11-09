@@ -1,8 +1,8 @@
-import { TextContent } from '@modelcontextprotocol/sdk/types.js';
+import { ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import type { ToolContext } from '../types/toolContext.js';
 import { downloadGeneration, getAccountInfo, getGeneration } from '../services/svgmakerService.js';
-import { GALLERY_URL, GENERATIONS_URL, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
+import { EDITOR_URL, GALLERY_URL, GENERATIONS_URL, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
@@ -63,6 +63,8 @@ export const fileResultOutputSchema = zodToJsonSchema(FileResultSchema);
 export interface FileCard {
   url: string;
   downloadUrl?: string;
+  /** Opens the image in the SVGMaker editor; set only for an SVG with a generation id. */
+  editUrl?: string;
   generationsUrl: string;
   /** WebP data URL of the image, saved with the chat so the card still shows it after `url` expires. */
   preview?: string;
@@ -83,7 +85,7 @@ interface FileResponse {
 
 // Without this the model repeats the card below it, sometimes with a stock picture.
 const RESULT_CARD_NOTE =
-  'The user already sees this file in an SVGMaker card with a download button and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
+  'The user already sees this file in an SVGMaker card with Edit and Download buttons and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
 
 /**
  * Build a tool result for a hosted file. The text carries the URL, as
@@ -118,6 +120,10 @@ export async function buildFileResult(
       ? `${GENERATIONS_URL}?open=${encodeURIComponent(response.generationId)}&download=1`
       : new URL(url).origin === new URL(GENERATIONS_URL).origin
         ? `${url}${url.includes('?') ? '&' : '?'}download=1`
+        : undefined,
+    editUrl:
+      response.generationId && format === 'svg'
+        ? `${EDITOR_URL}?generationId=${encodeURIComponent(response.generationId)}`
         : undefined,
     generationsUrl: GENERATIONS_URL,
     creditsUsed: response.creditCost,
@@ -166,13 +172,20 @@ export interface ListCardItem {
   id: string;
   /** WebP data URL; left out when the image could not be read. */
   preview?: string;
-  /** The image's public page, or the generations page for a private image. */
+  /** The image on the user's generations page, or a gallery item's public page. */
   url: string;
+  /** Where the download button goes when the card shows a single image. */
+  downloadUrl: string;
+  /** Opens the image in the SVGMaker editor; set only for the user's generations. */
+  editUrl?: string;
 }
 
 /** What only the ChatGPT list card gets, in the result's `_meta`. */
 export interface ListCard {
+  /** Thumbnails of the first LIST_CARD_LIMIT images. */
   items: ListCardItem[];
+  /** How many images the tool returned; the card counts the ones past `items` in a "+N" tile. */
+  total: number;
   /** Where to see every image: the generations page or the gallery. */
   moreUrl: string;
 }
@@ -184,36 +197,55 @@ const LIST_CARD_LIMIT = 12;
 const THUMBNAIL_SIZE = 256;
 
 const LIST_CARD_NOTE =
-  'The user already sees these images as thumbnails in an SVGMaker card. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.';
+  `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;
 
-/** A thumbnail for one of the caller's generations: its public preview, else a private download. */
-async function generationThumbnail(id: string, client?: SVGMakerClient): Promise<ListCardItem> {
+/**
+ * A thumbnail for one of the caller's generations: its public preview, else a
+ * private download. It opens the image on the generations page.
+ */
+async function generationThumbnail(
+  id: string,
+  client: SVGMakerClient | undefined,
+  size?: number
+): Promise<ListCardItem> {
+  const url = `${GENERATIONS_URL}?open=${encodeURIComponent(id)}`;
+  return {
+    id,
+    preview: await generationPreview(id, client, size),
+    url,
+    downloadUrl: `${url}&download=1`,
+    editUrl: `${EDITOR_URL}?generationId=${encodeURIComponent(id)}`,
+  };
+}
+
+/** A WebP data URL of one of the caller's generations: its public preview, else a private download. */
+async function generationPreview(
+  id: string,
+  client: SVGMakerClient | undefined,
+  size?: number
+): Promise<string | undefined> {
   try {
-    const preview = await fetchCardPreview(publicPreviewUrl(id), THUMBNAIL_SIZE);
-    return { id, preview, url: shareUrl(id) };
+    return await fetchCardPreview(publicPreviewUrl(id), size);
   } catch {
     // A private image has no public preview.
   }
   try {
-    const { url } = await downloadGeneration(id, { format: 'webp' }, client);
-    return { id, preview: await fetchCardPreview(url, THUMBNAIL_SIZE), url: GENERATIONS_URL };
+    const download = await downloadGeneration(id, { format: 'webp' }, client);
+    return await fetchCardPreview(download.url, size);
   } catch {
     logToFile('Could not make thumbnail');
-    return { id, url: GENERATIONS_URL };
+    return undefined;
   }
 }
 
 /** A thumbnail for a public gallery item. */
-async function galleryThumbnail(id: string): Promise<ListCardItem> {
+async function galleryThumbnail(id: string, size?: number): Promise<ListCardItem> {
+  const url = shareUrl(id);
   try {
-    return {
-      id,
-      preview: await fetchCardPreview(publicPreviewUrl(id), THUMBNAIL_SIZE),
-      url: shareUrl(id),
-    };
+    return { id, preview: await fetchCardPreview(publicPreviewUrl(id), size), url, downloadUrl: url };
   } catch {
     logToFile('Could not make thumbnail');
-    return { id, url: shareUrl(id) };
+    return { id, url, downloadUrl: url };
   }
 }
 
@@ -231,18 +263,63 @@ export async function buildListResult(
   if (!ctx.chatgpt) {
     return { content: [{ type: 'text', text } as TextContent] };
   }
+  // A single image shows full size, like the result card.
+  const size = ids.length === 1 ? undefined : THUMBNAIL_SIZE;
   const items = await Promise.all(
     ids
       .slice(0, LIST_CARD_LIMIT)
-      .map((id) => (source === 'gallery' ? galleryThumbnail(id) : generationThumbnail(id, client)))
+      .map((id) =>
+        source === 'gallery' ? galleryThumbnail(id, size) : generationThumbnail(id, client, size)
+      )
   );
   const card: ListCard = {
     items,
+    total: ids.length,
     moreUrl: source === 'gallery' ? GALLERY_URL : GENERATIONS_URL,
   };
   return {
     content: [{ type: 'text', text: `${text}\n${LIST_CARD_NOTE}` } as TextContent],
     _meta: { [LIST_CARD_META_KEY]: card },
+  };
+}
+
+const IMAGE_CARD_NOTE =
+  'The user already sees this image in an SVGMaker card. Reply with one short sentence, or answer only what the user asked from the details above. Never write the id, and do not describe the image or repeat what the card shows.';
+
+/**
+ * Add the result card to the result of a tool that looks at one existing
+ * image. A generation gets Edit and its download dialog; a gallery item
+ * downloads from its public page. Outside ChatGPT the result is unchanged.
+ */
+export async function withImageCard<T extends { content: (TextContent | ImageContent)[] }>(
+  result: T,
+  id: string,
+  source: 'generations' | 'gallery',
+  client: SVGMakerClient | undefined,
+  ctx: ToolContext
+): Promise<T & { structuredContent?: FileResult; _meta?: Record<string, FileCard> }> {
+  if (!ctx.chatgpt) {
+    return result;
+  }
+  const encoded = encodeURIComponent(id);
+  const card: FileCard =
+    source === 'gallery'
+      ? { url: shareUrl(id), downloadUrl: shareUrl(id), generationsUrl: GENERATIONS_URL }
+      : {
+          url: `${GENERATIONS_URL}?open=${encoded}`,
+          downloadUrl: `${GENERATIONS_URL}?open=${encoded}&download=1`,
+          editUrl: `${EDITOR_URL}?generationId=${encoded}`,
+          generationsUrl: GENERATIONS_URL,
+        };
+  card.preview =
+    source === 'gallery'
+      ? await fetchCardPreview(publicPreviewUrl(id)).catch(() => undefined)
+      : await generationPreview(id, client);
+  return {
+    ...result,
+    content: [...result.content, { type: 'text', text: IMAGE_CARD_NOTE } as TextContent],
+    structuredContent: { format: 'svg', generationId: id },
+    _meta: { [FILE_CARD_META_KEY]: card },
   };
 }
 

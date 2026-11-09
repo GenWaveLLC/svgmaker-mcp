@@ -9,7 +9,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildListResult, buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildListResult,
+  buildUrlResult,
+  rejectOutputPathOverHttp,
+  withImageCard,
+} from '../utils/outputUtils.js';
 
 // ── Generations List Tool ──
 
@@ -108,7 +113,7 @@ export async function handleGenerationsGetTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS GET TOOL CALLED ==========');
 
@@ -132,9 +137,13 @@ export async function handleGenerationsGetTool(
       `- Categories: ${categories}`,
     ].join('\n');
 
-    return {
-      content: [{ type: 'text', text } as TextContent],
-    };
+    return await withImageCard(
+      { content: [{ type: 'text', text } as TextContent] },
+      result.id,
+      'generations',
+      client,
+      ctx
+    );
   } catch (error: any) {
     return {
       isError: true,
@@ -388,7 +397,7 @@ export async function handleGenerationsPreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
 
@@ -404,15 +413,13 @@ export async function handleGenerationsPreviewTool(
     );
     const base64Data = await fetchRemotePreview(result.url);
 
-    return {
-      content: [
-        {
-          type: 'image',
-          data: base64Data,
-          mimeType: 'image/png',
-        } as ImageContent,
-      ],
-    };
+    return await withImageCard(
+      { content: [{ type: 'image', data: base64Data, mimeType: 'image/png' } as ImageContent] },
+      validatedArgs.generation_id,
+      'generations',
+      client,
+      ctx
+    );
   } catch (error: any) {
     return {
       isError: true,

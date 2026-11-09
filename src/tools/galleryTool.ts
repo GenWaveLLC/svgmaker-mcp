@@ -9,7 +9,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildListResult, buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildListResult,
+  buildUrlResult,
+  rejectOutputPathOverHttp,
+  withImageCard,
+} from '../utils/outputUtils.js';
 
 // ── Gallery List Tool ──
 
@@ -291,7 +296,7 @@ export async function handleGalleryPreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GALLERY PREVIEW TOOL CALLED ==========');
 
@@ -307,15 +312,13 @@ export async function handleGalleryPreviewTool(
     );
     const base64Data = await fetchRemotePreview(result.url);
 
-    return {
-      content: [
-        {
-          type: 'image',
-          data: base64Data,
-          mimeType: 'image/png',
-        } as ImageContent,
-      ],
-    };
+    return await withImageCard(
+      { content: [{ type: 'image', data: base64Data, mimeType: 'image/png' } as ImageContent] },
+      validatedArgs.generation_id,
+      'gallery',
+      client,
+      ctx
+    );
   } catch (error: any) {
     return {
       isError: true,

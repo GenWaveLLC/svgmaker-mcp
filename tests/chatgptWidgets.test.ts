@@ -3,7 +3,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../src/server.js';
-import { buildErrorResult, buildFileResult, buildListResult } from '../src/utils/outputUtils.js';
+import {
+  buildErrorResult,
+  buildFileResult,
+  buildListResult,
+  withImageCard,
+} from '../src/utils/outputUtils.js';
 import { fetchCardPreview } from '../src/utils/previewUtils.js';
 import * as svgmakerService from '../src/services/svgmakerService.js';
 
@@ -27,6 +32,9 @@ const RESULT_CARD_TOOLS = [
   'svgmaker_edit',
   'svgmaker_convert',
   'svgmaker_remove_background',
+  'svgmaker_generations_get',
+  'svgmaker_generations_preview',
+  'svgmaker_gallery_preview',
 ];
 
 const CHATGPT = { transport: 'http', chatgpt: true } as const;
@@ -242,6 +250,7 @@ describe('buildFileResult', () => {
       'svgmaker/file': {
         url: 'https://svgmaker.io/api/files/t',
         downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
+        editUrl: 'https://svgmaker.io/editor?generationId=gen1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
         creditsUsed: 2,
@@ -271,6 +280,7 @@ describe('buildFileResult', () => {
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/api/files/t',
       downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
+      editUrl: 'https://svgmaker.io/editor?generationId=gen1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,
@@ -307,14 +317,19 @@ describe('buildListResult', () => {
         {
           id: 'public',
           preview: 'data:https://svgmaker.io/images/preview/public',
-          url: 'https://svgmaker.io/share/public',
+          url: 'https://svgmaker.io/generations?open=public',
+          downloadUrl: 'https://svgmaker.io/generations?open=public&download=1',
+          editUrl: 'https://svgmaker.io/editor?generationId=public',
         },
         {
           id: 'private',
           preview: 'data:https://svgmaker.io/api/files/p',
-          url: 'https://svgmaker.io/generations',
+          url: 'https://svgmaker.io/generations?open=private',
+          downloadUrl: 'https://svgmaker.io/generations?open=private&download=1',
+          editUrl: 'https://svgmaker.io/editor?generationId=private',
         },
       ],
+      total: 2,
       moreUrl: 'https://svgmaker.io/generations',
     });
     vi.mocked(fetchCardPreview).mockResolvedValue('data:image/webp;base64,UFJFVklFVw==');
@@ -326,8 +341,61 @@ describe('buildListResult', () => {
     const result = await buildListResult('ids', ids, 'gallery', undefined, CHATGPT);
     const card = result._meta?.['svgmaker/list'];
     expect(card?.items).toHaveLength(12);
-    expect(card?.items[0]).toEqual({ id: 'g0', url: 'https://svgmaker.io/share/g0' });
+    expect(card?.total).toBe(20);
+    expect(card?.items[0]).toEqual({
+      id: 'g0',
+      url: 'https://svgmaker.io/share/g0',
+      downloadUrl: 'https://svgmaker.io/share/g0',
+    });
     expect(card?.moreUrl).toBe('https://svgmaker.io/gallery');
+  });
+
+  it('fetches a single image at full size and thumbnails at 256', async () => {
+    await buildListResult('ids', ['one'], 'gallery', undefined, CHATGPT);
+    expect(vi.mocked(fetchCardPreview)).toHaveBeenLastCalledWith(
+      'https://svgmaker.io/images/preview/one',
+      undefined
+    );
+    await buildListResult('ids', ['a', 'b'], 'gallery', undefined, CHATGPT);
+    expect(vi.mocked(fetchCardPreview)).toHaveBeenLastCalledWith(
+      'https://svgmaker.io/images/preview/b',
+      256
+    );
+  });
+});
+
+describe('withImageCard', () => {
+  const image = { content: [{ type: 'image' as const, data: 'UE5H', mimeType: 'image/png' }] };
+
+  it('outside ChatGPT returns the result unchanged', async () => {
+    expect(await withImageCard(image, 'gen1', 'generations', undefined, { transport: 'http' })).toBe(
+      image
+    );
+  });
+
+  it('gives a generation Edit and its download dialog', async () => {
+    const result = await withImageCard(image, 'gen1', 'generations', undefined, CHATGPT);
+    expect(result.content[0]).toEqual(image.content[0]);
+    expect(result.content[1]).toMatchObject({ type: 'text' });
+    expect(result.structuredContent).toEqual({ format: 'svg', generationId: 'gen1' });
+    expect(result._meta?.['svgmaker/file']).toEqual({
+      url: 'https://svgmaker.io/generations?open=gen1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
+      editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+      generationsUrl: 'https://svgmaker.io/generations',
+      preview: 'data:image/webp;base64,UFJFVklFVw==',
+    });
+  });
+
+  it('gives a gallery item its public page and no Edit', async () => {
+    vi.mocked(fetchCardPreview).mockRejectedValueOnce(new Error('HTTP 404'));
+    const result = await withImageCard(image, 'g1', 'gallery', undefined, CHATGPT);
+    expect(result._meta?.['svgmaker/file']).toEqual({
+      url: 'https://svgmaker.io/share/g1',
+      downloadUrl: 'https://svgmaker.io/share/g1',
+      generationsUrl: 'https://svgmaker.io/generations',
+      preview: undefined,
+    });
   });
 });
 

@@ -8,8 +8,8 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v11.html';
-const LIST_CARD_URI = 'ui://svgmaker/list-card-v2.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v21.html';
+const LIST_CARD_URI = 'ui://svgmaker/list-card-v8.html';
 
 /**
  * Every widget: its ui:// URI, the built HTML file in ./widgets (copied from
@@ -20,8 +20,8 @@ const WIDGETS = [
     uri: RESULT_CARD_URI,
     file: 'result-card.html',
     name: 'SVGMaker result card',
-    description: 'Preview of an image SVGMaker made, with a download button.',
-    shows: 'Shows the image with its credits used, credits left and a download button.',
+    description: 'Preview of an SVGMaker image, with Edit and Download buttons.',
+    shows: 'Shows the image with Edit and Download buttons and, for a new image, the credits used.',
   },
   {
     uri: LIST_CARD_URI,
@@ -42,6 +42,9 @@ const TOOL_WIDGETS: Record<string, string> = {
   svgmaker_edit: RESULT_CARD_URI,
   svgmaker_convert: RESULT_CARD_URI,
   svgmaker_remove_background: RESULT_CARD_URI,
+  svgmaker_generations_get: RESULT_CARD_URI,
+  svgmaker_generations_preview: RESULT_CARD_URI,
+  svgmaker_gallery_preview: RESULT_CARD_URI,
   svgmaker_generations_list: LIST_CARD_URI,
   svgmaker_gallery_list: LIST_CARD_URI,
 };
@@ -54,10 +57,13 @@ const FILE_ORIGIN = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
 
 /** What ChatGPT's model is told about this server, in the initialize result. */
 export const CHATGPT_INSTRUCTIONS =
-  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. To show one the user asks to see, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with `input` set to that result's generationId. Share or delete an image only when explicitly requested. A failed or timed-out generate, edit, convert or remove-background call may still have made and charged an image: call svgmaker_generations_list before retrying, and never tell the user an image is unchanged or was not made without checking. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id, list the image's details or repeat what the card shows.";
+  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. A list tool's card already shows its images, so never preview an image a list card just showed. To show one image the user names, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with `input` set to that result's generationId. Share or delete an image only when explicitly requested. A failed or timed-out generate, edit, convert or remove-background call may still have made and charged an image: call svgmaker_generations_list before retrying, and never tell the user an image is unchanged or was not made without checking. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id, list the image's details or repeat what the card shows.";
 
 /** The user's generations page on that same host. */
 export const GENERATIONS_URL = `${FILE_ORIGIN}/generations`;
+
+/** The SVG editor on that same host; `?generationId=` opens one of the user's images. */
+export const EDITOR_URL = `${FILE_ORIGIN}/editor`;
 
 /** The public gallery page. */
 export const GALLERY_URL = `${FILE_ORIGIN}/gallery`;
@@ -109,7 +115,8 @@ export function registerWidgetResources(server: Server): void {
             ui: {
               domain: 'https://mcp.svgmaker.io',
               csp: { connectDomains: [FILE_ORIGIN], resourceDomains: [FILE_ORIGIN] },
-              prefersBorder: true,
+              // No full-width ChatGPT frame: the cards are sized to their images.
+              prefersBorder: false,
             },
             'openai/widgetDescription': widget.shows,
             // ChatGPT reads openExternal targets only from the legacy CSP key.
