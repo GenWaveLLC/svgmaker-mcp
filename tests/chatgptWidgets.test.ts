@@ -72,6 +72,21 @@ describe('safety hints', () => {
     ]);
     await client.close();
   });
+
+  it('also marks the credit-spending tools as destructive on the ChatGPT endpoint', async () => {
+    const client = await connect(CHATGPT);
+    const { tools } = await client.listTools();
+    const destructive = tools.filter((tool) => tool.annotations?.destructiveHint);
+    expect(destructive.map((tool) => tool.name).sort()).toEqual([
+      'svgmaker_convert',
+      'svgmaker_edit',
+      'svgmaker_generate',
+      'svgmaker_generations_delete',
+      'svgmaker_generations_share',
+      'svgmaker_remove_background',
+    ]);
+    await client.close();
+  });
 });
 
 describe('local file overwrites', () => {
