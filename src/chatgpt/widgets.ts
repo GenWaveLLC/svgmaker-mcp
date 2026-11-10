@@ -8,8 +8,8 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v24.html';
-const LIST_CARD_URI = 'ui://svgmaker/list-card-v8.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v25.html';
+const LIST_CARD_URI = 'ui://svgmaker/list-card-v9.html';
 
 /**
  * Every widget: its ui:// URI, the built HTML file in ./widgets (copied from
@@ -118,6 +118,8 @@ export function registerWidgetResources(server: Server): void {
               // No full-width ChatGPT frame: the cards are sized to their images.
               prefersBorder: false,
             },
+            // Only in the chat, like ChatGPT's own images: no side panel or "Open in app".
+            'openai/ui': { availableDisplayModes: ['inline'] },
             'openai/widgetDescription': widget.shows,
             // ChatGPT reads openExternal targets only from the legacy CSP key.
             'openai/widgetCSP': {
