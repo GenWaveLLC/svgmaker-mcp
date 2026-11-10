@@ -100,8 +100,11 @@ if [ "$UPDATE_MODE" = false ]; then
 fi
 
 # Deploy to Cloud Run.
-# The HTTP transport is token-only: no API key is set here. The only env vars the
-# server needs are its own public address and the OAuth auth server address.
+# The HTTP transport is token-only: no API key is set here. The server needs its
+# own public address, the OAuth auth server address, and the secret it swaps a
+# user's MCP token for an API token with. Create that secret once, with the same
+# value as svgmaker.io's OAUTH_TOKEN_EXCHANGE_SECRET:
+#   printf '%s' "<secret>" | gcloud secrets create OAUTH_TOKEN_EXCHANGE_SECRET --data-file=-
 echo "Deploying to Cloud Run..."
 
 gcloud run deploy "$SERVICE_NAME" \
@@ -116,7 +119,8 @@ gcloud run deploy "$SERVICE_NAME" \
     --min-instances="$MIN_INSTANCES" \
     --max-instances="$MAX_INSTANCES" \
     --timeout="$TIMEOUT" \
-    --set-env-vars="MCP_PUBLIC_URL=${MCP_PUBLIC_URL},SVGMAKER_AUTH_SERVER_URL=${SVGMAKER_AUTH_SERVER_URL}"
+    --set-env-vars="MCP_PUBLIC_URL=${MCP_PUBLIC_URL},SVGMAKER_AUTH_SERVER_URL=${SVGMAKER_AUTH_SERVER_URL}" \
+    --set-secrets="OAUTH_TOKEN_EXCHANGE_SECRET=OAUTH_TOKEN_EXCHANGE_SECRET:latest"
 
 echo ""
 echo "Deployment complete!"

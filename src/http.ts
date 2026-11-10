@@ -17,12 +17,15 @@ const AUTH_SERVER = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
   ''
 );
 
-// Base URL of the protected resource API (api.svgmaker.io) the JWT is minted for.
-// This is the expected `aud` claim. Trailing slash stripped for a clean compare.
-const API_RESOURCE = (process.env.SVGMAKER_API_RESOURCE || 'https://api.svgmaker.io').replace(
-  /\/+$/,
-  ''
-);
+// The auth server's token endpoint, where a user's MCP token is swapped for an API token.
+const TOKEN_ENDPOINT = `${AUTH_SERVER}/api/oauth/token`;
+
+// The header our swap secret goes in; the auth server holds the same secret.
+const EXCHANGE_SECRET_HEADER = 'x-token-exchange-secret';
+const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
+
+// Refresh an API token this long before it expires.
+const API_TOKEN_MARGIN_MS = 60_000;
 
 // Remote JWKS for verifying RS256 access-token signatures. jose fetches the key
 // set from the auth server's well-known endpoint, caches it, and refreshes on a
@@ -105,24 +108,71 @@ function sendUnauthorized(
 
 /**
  * Verify an OAuth access token locally against the auth server's JWKS. We require
- * an RS256 JWT signed by svgmaker.io with our exact `iss`/`aud`; `jwtVerify` with
- * these options rejects bad signatures, wrong issuer/audience, expired tokens and
- * anything that isn't a proper JWT. A small clock tolerance absorbs skew. On any
- * failure (including an unreachable JWKS) we treat the token as unauthorized — we
- * never fall back to trusting a token just because it is bearer-shaped.
+ * an RS256 JWT signed by svgmaker.io and issued for this server: its `aud` is one
+ * of our resource URLs (the root, /mcp or /chatgpt), never the API. `jwtVerify`
+ * with these options rejects bad signatures, wrong issuer/audience, expired tokens
+ * and anything that isn't a proper JWT. A small clock tolerance absorbs skew. On
+ * any failure (including an unreachable JWKS) we treat the token as unauthorized —
+ * we never fall back to trusting a token just because it is bearer-shaped.
  *
  * Returns the verified `sub` (Firebase UID) on success, or undefined on failure.
  */
-async function verifyAccessToken(token: string): Promise<string | undefined> {
+async function verifyAccessToken(token: string, resourceUrl: string): Promise<string | undefined> {
   try {
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: AUTH_SERVER,
-      audience: API_RESOURCE,
+      audience: ['', ...MCP_PATHS].map((path) => `${resourceUrl}${path}`),
       clockTolerance: 30,
     });
     // A verified token must identify a user. Reject (undefined) when `sub` is
     // missing or not a non-empty string instead of letting it through.
     return typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// API tokens by the MCP token they were swapped for, until they expire.
+const apiTokens = new Map<string, { token: string; expiresAt: number }>();
+
+/**
+ * Swap a verified MCP token for an API token for the same user at the auth
+ * server (OAuth token exchange), reusing one swapped earlier until it nearly
+ * expires. The MCP token itself never leaves this server.
+ *
+ * Returns the API token, or undefined when the swap fails.
+ */
+async function apiTokenFor(mcpToken: string): Promise<string | undefined> {
+  const now = Date.now();
+  const cached = apiTokens.get(mcpToken);
+  if (cached && cached.expiresAt - API_TOKEN_MARGIN_MS > now) return cached.token;
+
+  const secret = process.env.OAUTH_TOKEN_EXCHANGE_SECRET;
+  if (!secret) return undefined;
+  try {
+    const response = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        [EXCHANGE_SECRET_HEADER]: secret,
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: mcpToken,
+        subject_token_type: ACCESS_TOKEN_TYPE,
+      }),
+    });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
+    if (typeof body.access_token !== 'string' || typeof body.expires_in !== 'number') {
+      return undefined;
+    }
+
+    for (const [key, entry] of apiTokens) {
+      if (entry.expiresAt <= now) apiTokens.delete(key);
+    }
+    apiTokens.set(mcpToken, { token: body.access_token, expiresAt: now + body.expires_in * 1000 });
+    return body.access_token;
   } catch {
     return undefined;
   }
@@ -166,12 +216,21 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string
 
   // a2. Verify the JWT locally against the auth server's JWKS before doing any
   //     real work. A failed verification gets the browser-flow 401 too.
-  const userId = await verifyAccessToken(token);
+  const userId = await verifyAccessToken(token, getResourceUrl(req));
   if (!userId) {
     sendUnauthorized(res, req, path, 'Invalid or expired OAuth access token');
     return;
   }
   logToFile('Authenticated MCP request');
+
+  // a3. Swap it for the API token the tools call api.svgmaker.io with. A failed
+  //     swap is our fault, not the user's, so it isn't a 401 (no new sign-in).
+  const apiToken = await apiTokenFor(token);
+  if (!apiToken) {
+    logToFile('Token exchange failed');
+    sendJson(res, 502, { error: 'Could not reach SVGMaker sign-in. Try again shortly.' });
+    return;
+  }
 
   // b. Read and parse the request body.
   let parsedBody: unknown;
@@ -182,14 +241,14 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string
     return;
   }
 
-  // c. Build a per-request client. The verified JWT is forwarded downstream to
-  //    api.svgmaker.io as a Bearer token (the SDK's accessToken mode), not as an
-  //    x-api-key. apiKey stays empty here — HTTP transport has no static key.
+  // c. Build a per-request client. The API token is sent to api.svgmaker.io as
+  //    a Bearer token (the SDK's accessToken mode), not as an x-api-key. apiKey
+  //    stays empty here — HTTP transport has no static key.
   const client = createSvgmakerClient(
     '',
     process.env.SVGMAKER_RATE_LIMIT_RPM,
     process.env.SVGMAKER_BASE_URL || DEFAULT_BASE_URL,
-    token
+    apiToken
   );
 
   // d. Build a fresh server.
