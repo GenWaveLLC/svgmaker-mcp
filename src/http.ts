@@ -29,9 +29,9 @@ const API_RESOURCE = (process.env.SVGMAKER_API_RESOURCE || 'https://api.svgmaker
 // `kid` miss, so we don't need our own token/JWKS cache here.
 const JWKS = createRemoteJWKSet(new URL(`${AUTH_SERVER}/.well-known/jwks.json`));
 
-// The MCP endpoints. /chatgpt/mcp serves the same tools plus ChatGPT's result
+// The MCP endpoints. /chatgpt serves the same tools plus ChatGPT's result
 // card; /mcp stays plain for every other client (Claude, Cursor, ...).
-const MCP_PATHS = ['/mcp', '/chatgpt/mcp'];
+const MCP_PATHS = ['/mcp', '/chatgpt'];
 
 /**
  * Send a JSON response. Safe no-op if headers were already sent.
@@ -195,7 +195,7 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string
   // d. Build a fresh server.
   const server = createMcpServer(client, {
     transport: 'http',
-    chatgpt: path === '/chatgpt/mcp',
+    chatgpt: path === '/chatgpt',
   });
 
   // e. Create a stateless transport and wire it up.
