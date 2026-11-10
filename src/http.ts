@@ -24,6 +24,9 @@ const TOKEN_ENDPOINT = `${AUTH_SERVER}/api/oauth/token`;
 const EXCHANGE_SECRET_HEADER = 'x-token-exchange-secret';
 const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 
+// The permission a token must carry to use this server.
+const SCOPE = 'svgmaker';
+
 // Refresh an API token this long before it expires.
 const API_TOKEN_MARGIN_MS = 60_000;
 
@@ -109,7 +112,8 @@ function sendUnauthorized(
 /**
  * Verify an OAuth access token locally against the auth server's JWKS. We require
  * an RS256 JWT signed by svgmaker.io and issued for this server: its `aud` is one
- * of our resource URLs (the root, /mcp or /chatgpt), never the API. `jwtVerify`
+ * of our resource URLs (the root, /mcp or /chatgpt), never the API, and its
+ * `scope` grants svgmaker. `jwtVerify`
  * with these options rejects bad signatures, wrong issuer/audience, expired tokens
  * and anything that isn't a proper JWT. A small clock tolerance absorbs skew. On
  * any failure (including an unreachable JWKS) we treat the token as unauthorized —
@@ -124,9 +128,9 @@ async function verifyAccessToken(token: string, resourceUrl: string): Promise<st
       audience: ['', ...MCP_PATHS].map((path) => `${resourceUrl}${path}`),
       clockTolerance: 30,
     });
-    // A verified token must identify a user. Reject (undefined) when `sub` is
-    // missing or not a non-empty string instead of letting it through.
-    return typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+    // A verified token must identify a user and carry the svgmaker scope.
+    const scoped = typeof payload.scope === 'string' && payload.scope.split(' ').includes(SCOPE);
+    return scoped && typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
   } catch {
     return undefined;
   }
