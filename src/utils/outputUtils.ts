@@ -2,7 +2,7 @@ import { ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import type { ToolContext } from '../types/toolContext.js';
 import { downloadGeneration, getAccountInfo, getGeneration } from '../services/svgmakerService.js';
-import { EDITOR_URL, GALLERY_URL, GENERATIONS_URL, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
+import { EDITOR_URL, GENERATIONS_URL, gallerySearchUrl, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
@@ -182,7 +182,7 @@ export interface ListCard {
   items: ListCardItem[];
   /** How many images the list has across all pages; the card counts the ones past `items` in a "+N" tile. */
   total: number;
-  /** Where to see every image: the generations page or the gallery. */
+  /** Where to see every image: the generations page, or the gallery on the same search. */
   moreUrl: string;
 }
 
@@ -247,7 +247,7 @@ async function galleryThumbnail(id: string, size?: number): Promise<ListCardItem
 /**
  * Build a list tool's result. The text lists the ids for the model; on the
  * ChatGPT endpoint the list card also gets thumbnails of the first few in `_meta`
- * and `total`, the list's size across all pages.
+ * and `total`, the list's size across all pages. A gallery `query` carries into the card's SVGMaker link.
  */
 export async function buildListResult(
   text: string,
@@ -255,7 +255,8 @@ export async function buildListResult(
   source: 'generations' | 'gallery',
   client: SVGMakerClient | undefined,
   ctx: ToolContext,
-  total = ids.length
+  total = ids.length,
+  query?: string
 ): Promise<{ content: TextContent[]; _meta?: Record<string, ListCard> }> {
   if (!ctx.chatgpt) {
     return { content: [{ type: 'text', text } as TextContent] };
@@ -273,7 +274,7 @@ export async function buildListResult(
     items,
     // A one-image list stays one image, so the card shows it like the result card.
     total: ids.length === 1 ? 1 : Math.max(total, ids.length),
-    moreUrl: source === 'gallery' ? GALLERY_URL : GENERATIONS_URL,
+    moreUrl: source === 'gallery' ? gallerySearchUrl(query) : GENERATIONS_URL,
   };
   return {
     content: [{ type: 'text', text: `${text}\n${LIST_CARD_NOTE}` } as TextContent],

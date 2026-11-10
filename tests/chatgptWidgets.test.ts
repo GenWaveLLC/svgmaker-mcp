@@ -388,6 +388,11 @@ describe('buildListResult', () => {
     expect(card?.moreUrl).toBe('https://svgmaker.io/gallery');
   });
 
+  it('opens the gallery on the same search', async () => {
+    const result = await buildListResult('ids', ['g0', 'g1'], 'gallery', undefined, CHATGPT, 2, 'red robot');
+    expect(result._meta?.['svgmaker/list']?.moreUrl).toBe('https://svgmaker.io/gallery?query=red%20robot');
+  });
+
   it('counts the whole list, not just this page, except for a single image', async () => {
     const page = await buildListResult('ids', ['a', 'b'], 'gallery', undefined, CHATGPT, 500);
     expect(page._meta?.['svgmaker/list']?.total).toBe(500);

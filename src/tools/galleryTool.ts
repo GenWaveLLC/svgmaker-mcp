@@ -86,7 +86,8 @@ export async function handleGalleryListTool(
       'gallery',
       client,
       ctx,
-      p.totalItems
+      p.totalItems,
+      validatedArgs.query
     );
   } catch (error: any) {
     return {

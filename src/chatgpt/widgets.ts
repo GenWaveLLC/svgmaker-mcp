@@ -72,6 +72,12 @@ export const EDITOR_URL = `${FILE_ORIGIN}/editor`;
 /** The public gallery page. */
 export const GALLERY_URL = `${FILE_ORIGIN}/gallery`;
 
+/** The gallery page opened on a search, or the whole gallery without one. */
+export function gallerySearchUrl(query?: string): string {
+  const q = query?.trim();
+  return q ? `${GALLERY_URL}?query=${encodeURIComponent(q)}` : GALLERY_URL;
+}
+
 /** The public page of a public generation, where anyone can download it. */
 export function shareUrl(generationId: string): string {
   return `${FILE_ORIGIN}/share/${generationId}`;
