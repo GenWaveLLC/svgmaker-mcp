@@ -86,7 +86,7 @@ interface FileResponse {
 
 // Without this the model repeats the card below it, sometimes with a stock picture.
 const RESULT_CARD_NOTE =
-  'The user already sees this file in an SVGMaker card with Edit and Open buttons and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
+  'The user already sees this file in an SVGMaker card with Edit and Open buttons and the credits. Unless the user asks for image details, reply with one short sentence, such as "Here is your SVG." Never write the generation id: keep it only for later edits. Do not repeat image details unless the user asks, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
 
 /**
  * Build a tool result for a hosted file. The text carries the URL, as
@@ -282,7 +282,7 @@ export async function buildListResult(
 }
 
 const IMAGE_CARD_NOTE =
-  'The user already sees this image in an SVGMaker card. Reply with one short sentence, or answer only what the user asked from the details above. Never write the id, and do not describe the image or repeat what the card shows.';
+  'The user already sees this image in an SVGMaker card. Reply with one short sentence, or answer only what the user asked from the details above. Never write the id or repeat what the card shows, and describe the image only when the user asks.';
 
 /**
  * Add the result card to the result of a tool that looks at one existing
