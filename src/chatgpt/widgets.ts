@@ -8,7 +8,7 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v21.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v24.html';
 const LIST_CARD_URI = 'ui://svgmaker/list-card-v8.html';
 
 /**
