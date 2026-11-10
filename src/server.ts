@@ -32,7 +32,12 @@ import {
 import { buildPreviewToolDefinition, handlePreviewTool } from './tools/previewTool.js';
 import { buildUploadToolDefinition, handleUploadTool } from './tools/uploadTool.js';
 import { fileToInput, withFileParam } from './chatgpt/files.js';
-import { CHATGPT_INSTRUCTIONS, registerWidgetResources, withWidget } from './chatgpt/widgets.js';
+import {
+  CHATGPT_DOWNLOAD_ERROR,
+  CHATGPT_INSTRUCTIONS,
+  registerWidgetResources,
+  withWidget,
+} from './chatgpt/widgets.js';
 import {
   buildGalleryListToolDefinition,
   handleGalleryListTool,
@@ -93,14 +98,15 @@ export function createMcpServer(
         buildGenerationsGetToolDefinition(ctx),
         buildGenerationsDeleteToolDefinition(ctx),
         buildGenerationsShareToolDefinition(ctx),
-        buildGenerationsDownloadToolDefinition(ctx),
+        // In ChatGPT, downloads happen on svgmaker.io from the card's Open button.
+        ...(ctx.chatgpt ? [] : [buildGenerationsDownloadToolDefinition(ctx)]),
         buildGenerationsPreviewToolDefinition(ctx),
         // svgmaker_preview only reads local disk, so over HTTP it can never succeed;
         // svgmaker_generations_preview / svgmaker_gallery_preview cover that transport.
         ...(ctx.transport === 'http' ? [] : [buildPreviewToolDefinition(ctx)]),
         buildGalleryListToolDefinition(ctx),
         buildGalleryGetToolDefinition(ctx),
-        buildGalleryDownloadToolDefinition(ctx),
+        ...(ctx.chatgpt ? [] : [buildGalleryDownloadToolDefinition(ctx)]),
         buildGalleryPreviewToolDefinition(ctx),
       ].map((tool) => (ctx.chatgpt ? withFileParam(withWidget(tool)) : tool)),
     };
@@ -134,6 +140,9 @@ export function createMcpServer(
       case 'svgmaker_generations_share':
         return await handleGenerationsShareTool(server, request, client, ctx);
       case 'svgmaker_generations_download':
+        if (ctx.chatgpt) {
+          return { content: [{ type: 'text', text: CHATGPT_DOWNLOAD_ERROR }], isError: true };
+        }
         return await handleGenerationsDownloadTool(server, request, client, ctx);
       case 'svgmaker_generations_preview':
         return await handleGenerationsPreviewTool(server, request, client, ctx);
@@ -151,6 +160,9 @@ export function createMcpServer(
       case 'svgmaker_gallery_get':
         return await handleGalleryGetTool(server, request, client, ctx);
       case 'svgmaker_gallery_download':
+        if (ctx.chatgpt) {
+          return { content: [{ type: 'text', text: CHATGPT_DOWNLOAD_ERROR }], isError: true };
+        }
         return await handleGalleryDownloadTool(server, request, client, ctx);
       case 'svgmaker_gallery_preview':
         return await handleGalleryPreviewTool(server, request, client, ctx);

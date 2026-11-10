@@ -30,12 +30,12 @@ const GenerationsListToolInputSchema = z.object({
   query: z.string().optional().describe('Free-text search over the prompt and description.'),
 });
 
-export function buildGenerationsListToolDefinition(_ctx: ToolContext) {
+export function buildGenerationsListToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_list',
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-    description:
-      'List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, _download, _share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.',
+    // ChatGPT has no download tool, so its description leaves _download out.
+    description: `List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, ${ctx.chatgpt ? '' : '_download, '}_share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.`,
     inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
   };
 }
@@ -390,12 +390,13 @@ const GenerationsPreviewToolInputSchema = z.object({
     .describe('Id of one of your generations, as returned by svgmaker_generations_list.'),
 });
 
-export function buildGenerationsPreviewToolDefinition(_ctx: ToolContext) {
+export function buildGenerationsPreviewToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_preview',
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-    description:
-      'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
+    description: ctx.chatgpt
+      ? 'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like. The user downloads the file on svgmaker.io from the card\'s Open button. Use svgmaker_gallery_preview for a public gallery item.'
+      : 'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
     inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
   };
 }

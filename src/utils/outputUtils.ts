@@ -62,7 +62,8 @@ export const fileResultOutputSchema = zodToJsonSchema(FileResultSchema);
 /** What only the ChatGPT result card gets, in the result's `_meta`. The model never sees it. */
 export interface FileCard {
   url: string;
-  downloadUrl?: string;
+  /** Where the Open button goes when it isn't `url`: the image on the generations page. */
+  openUrl?: string;
   /** Opens the image in the SVGMaker editor; set only for an SVG with a generation id. */
   editUrl?: string;
   generationsUrl: string;
@@ -85,7 +86,7 @@ interface FileResponse {
 
 // Without this the model repeats the card below it, sometimes with a stock picture.
 const RESULT_CARD_NOTE =
-  'The user already sees this file in an SVGMaker card with Edit and Download buttons and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
+  'The user already sees this file in an SVGMaker card with Edit and Open buttons and the credits. Reply with one short sentence, such as "Here is your SVG.", and nothing else. Never write the generation id: keep it only for later edits. Do not show, describe or list details of the image, and do not mention credits. Give the SVGMaker link above only if the user asks for a link.';
 
 /**
  * Build a tool result for a hosted file. The text carries the URL, as
@@ -112,15 +113,12 @@ export async function buildFileResult(
     return { ...buildUrlResult(description, url, expiresIn), structuredContent };
   }
 
-  // Download opens the image on the generations page with its download dialog;
-  // without a generation id it saves the file itself.
+  // Open shows the image on the generations page; without a generation id, the file itself.
   const card: FileCard = {
     url,
-    downloadUrl: response.generationId
-      ? `${GENERATIONS_URL}?open=${encodeURIComponent(response.generationId)}&download=1`
-      : new URL(url).origin === new URL(GENERATIONS_URL).origin
-        ? `${url}${url.includes('?') ? '&' : '?'}download=1`
-        : undefined,
+    openUrl: response.generationId
+      ? `${GENERATIONS_URL}?open=${encodeURIComponent(response.generationId)}`
+      : undefined,
     editUrl:
       response.generationId && format === 'svg'
         ? `${EDITOR_URL}?generationId=${encodeURIComponent(response.generationId)}`
@@ -172,10 +170,8 @@ export interface ListCardItem {
   id: string;
   /** WebP data URL; left out when the image could not be read. */
   preview?: string;
-  /** The image on the user's generations page, or a gallery item's public page. */
+  /** The image on the user's generations page, or a gallery item's public page; also where Open goes. */
   url: string;
-  /** Where the download button goes when the card shows a single image. */
-  downloadUrl: string;
   /** Opens the image in the SVGMaker editor; set only for the user's generations. */
   editUrl?: string;
 }
@@ -213,7 +209,6 @@ async function generationThumbnail(
     id,
     preview: await generationPreview(id, client, size),
     url,
-    downloadUrl: `${url}&download=1`,
     editUrl: `${EDITOR_URL}?generationId=${encodeURIComponent(id)}`,
   };
 }
@@ -242,10 +237,10 @@ async function generationPreview(
 async function galleryThumbnail(id: string, size?: number): Promise<ListCardItem> {
   const url = shareUrl(id);
   try {
-    return { id, preview: await fetchCardPreview(publicPreviewUrl(id), size), url, downloadUrl: url };
+    return { id, preview: await fetchCardPreview(publicPreviewUrl(id), size), url };
   } catch {
     logToFile('Could not make thumbnail');
-    return { id, url, downloadUrl: url };
+    return { id, url };
   }
 }
 
@@ -291,8 +286,8 @@ const IMAGE_CARD_NOTE =
 
 /**
  * Add the result card to the result of a tool that looks at one existing
- * image. A generation gets Edit and its download dialog; a gallery item
- * downloads from its public page. Outside ChatGPT the result is unchanged.
+ * image. Open shows a generation on the generations page, with Edit, and a
+ * gallery item on its public page. Outside ChatGPT the result is unchanged.
  */
 export async function withImageCard<T extends { content: (TextContent | ImageContent)[] }>(
   result: T,
@@ -307,10 +302,9 @@ export async function withImageCard<T extends { content: (TextContent | ImageCon
   const encoded = encodeURIComponent(id);
   const card: FileCard =
     source === 'gallery'
-      ? { url: shareUrl(id), downloadUrl: shareUrl(id), generationsUrl: GENERATIONS_URL }
+      ? { url: shareUrl(id), generationsUrl: GENERATIONS_URL }
       : {
           url: `${GENERATIONS_URL}?open=${encoded}`,
-          downloadUrl: `${GENERATIONS_URL}?open=${encoded}&download=1`,
           editUrl: `${EDITOR_URL}?generationId=${encoded}`,
           generationsUrl: GENERATIONS_URL,
         };

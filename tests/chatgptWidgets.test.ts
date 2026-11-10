@@ -202,6 +202,32 @@ describe('result card widget', () => {
   });
 });
 
+describe('downloads', () => {
+  const DOWNLOAD_TOOLS = ['svgmaker_generations_download', 'svgmaker_gallery_download'];
+
+  it('leaves the download tools out on the ChatGPT endpoint only', async () => {
+    for (const ctx of ['stdio', 'http', CHATGPT] as const) {
+      const client = await connect(ctx);
+      const names = (await client.listTools()).tools.map((tool) => tool.name);
+      for (const name of DOWNLOAD_TOOLS) {
+        expect(names.includes(name), `${name} on ${JSON.stringify(ctx)}`).toBe(ctx !== CHATGPT);
+      }
+      await client.close();
+    }
+  });
+
+  it('answers a download call from an old ChatGPT chat without calling the API', async () => {
+    const client = await connect(CHATGPT);
+    for (const name of DOWNLOAD_TOOLS) {
+      const result = await client.callTool({ name, arguments: { generation_id: 'gen1', format: 'svg' } });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result.content)).toContain("Downloads aren't available in ChatGPT");
+    }
+    expect(svgmakerService.downloadGeneration).not.toHaveBeenCalled();
+    await client.close();
+  });
+});
+
 describe('buildFileResult', () => {
   const args = [
     'SVG generated successfully.',
@@ -249,7 +275,7 @@ describe('buildFileResult', () => {
     expect(result._meta).toEqual({
       'svgmaker/file': {
         url: 'https://svgmaker.io/api/files/t',
-        downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
+        openUrl: 'https://svgmaker.io/generations?open=gen1',
         editUrl: 'https://svgmaker.io/editor?generationId=gen1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
@@ -279,7 +305,7 @@ describe('buildFileResult', () => {
     expect(result.content[0].text).toContain('SVGMaker generations page');
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/api/files/t',
-      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
+      openUrl: 'https://svgmaker.io/generations?open=gen1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
@@ -318,14 +344,12 @@ describe('buildListResult', () => {
           id: 'public',
           preview: 'data:https://svgmaker.io/images/preview/public',
           url: 'https://svgmaker.io/generations?open=public',
-          downloadUrl: 'https://svgmaker.io/generations?open=public&download=1',
           editUrl: 'https://svgmaker.io/editor?generationId=public',
         },
         {
           id: 'private',
           preview: 'data:https://svgmaker.io/api/files/p',
           url: 'https://svgmaker.io/generations?open=private',
-          downloadUrl: 'https://svgmaker.io/generations?open=private&download=1',
           editUrl: 'https://svgmaker.io/editor?generationId=private',
         },
       ],
@@ -345,7 +369,6 @@ describe('buildListResult', () => {
     expect(card?.items[0]).toEqual({
       id: 'g0',
       url: 'https://svgmaker.io/share/g0',
-      downloadUrl: 'https://svgmaker.io/share/g0',
     });
     expect(card?.moreUrl).toBe('https://svgmaker.io/gallery');
   });
@@ -380,14 +403,13 @@ describe('withImageCard', () => {
     );
   });
 
-  it('gives a generation Edit and its download dialog', async () => {
+  it('gives a generation Edit and opens it on the generations page', async () => {
     const result = await withImageCard(image, 'gen1', 'generations', undefined, CHATGPT);
     expect(result.content[0]).toEqual(image.content[0]);
     expect(result.content[1]).toMatchObject({ type: 'text' });
     expect(result.structuredContent).toEqual({ format: 'svg', generationId: 'gen1' });
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/generations?open=gen1',
-      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
@@ -399,7 +421,6 @@ describe('withImageCard', () => {
     const result = await withImageCard(image, 'g1', 'gallery', undefined, CHATGPT);
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/share/g1',
-      downloadUrl: 'https://svgmaker.io/share/g1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: undefined,
     });
