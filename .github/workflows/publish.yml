@@ -169,7 +169,7 @@ jobs:
             \"temperature\": 0.3
           }")
 
-        BODY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+        BODY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
 
         # Fallback to GitHub's raw notes if AI fails
         if [ -z "$BODY" ]; then
