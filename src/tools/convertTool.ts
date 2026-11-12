@@ -73,7 +73,7 @@ export function buildConvertToolDefinition(ctx: ToolContext) {
       openWorldHint: true,
     },
     description: ctx.chatgpt
-      ? 'Convert an attached or linked raster image into SVG. Spends account credits. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      ? 'Convert an attached or linked raster image into SVG. Spends account credits. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
       : isHttp
         ? CONVERT_DESCRIPTION_HTTP
         : CONVERT_DESCRIPTION_STDIO,

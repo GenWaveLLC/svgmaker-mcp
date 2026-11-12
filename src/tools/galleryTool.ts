@@ -295,7 +295,7 @@ export function buildGalleryPreviewToolDefinition(ctx: ToolContext) {
     name: 'svgmaker_gallery_preview',
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description: ctx.chatgpt
-      ? "Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, and it costs no credits. The user downloads the file on svgmaker.io from the card's Open button. Use svgmaker_generations_preview for generations the caller made."
+      ? "Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, and it costs no credits. The card's Open button shows it on svgmaker.io, where downloading depends on the user's SVGMaker plan. Use svgmaker_generations_preview for generations the caller made."
       : 'Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, on any transport, and it costs no credits. Use svgmaker_gallery_download instead when the user wants the file or a URL, and svgmaker_generations_preview for generations the caller made.',
     inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
   };

@@ -395,7 +395,7 @@ export function buildGenerationsPreviewToolDefinition(ctx: ToolContext) {
     name: 'svgmaker_generations_preview',
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description: ctx.chatgpt
-      ? "Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like. The user downloads the file on svgmaker.io from the card's Open button. Use svgmaker_gallery_preview for a public gallery item."
+      ? "Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like. The card's Open button shows it on svgmaker.io, where downloading depends on the user's SVGMaker plan. Use svgmaker_gallery_preview for a public gallery item."
       : 'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
     inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
   };
