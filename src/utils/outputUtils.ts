@@ -2,7 +2,13 @@ import { ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import type { ToolContext } from '../types/toolContext.js';
 import { downloadGeneration, getAccountInfo, getGeneration } from '../services/svgmakerService.js';
-import { EDITOR_URL, GENERATIONS_URL, gallerySearchUrl, publicPreviewUrl, shareUrl } from '../chatgpt/widgets.js';
+import {
+  EDITOR_URL,
+  GENERATIONS_URL,
+  gallerySearchUrl,
+  publicPreviewUrl,
+  shareUrl,
+} from '../chatgpt/widgets.js';
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
@@ -192,8 +198,7 @@ export const LIST_CARD_META_KEY = 'svgmaker/list';
 const LIST_CARD_LIMIT = 12;
 const THUMBNAIL_SIZE = 384;
 
-const LIST_CARD_NOTE =
-  `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, and for the rest of the list, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;
+const LIST_CARD_NOTE = `The user already sees these images in an SVGMaker card; past the first ${LIST_CARD_LIMIT}, and for the rest of the list, the card shows a count that opens SVGMaker. Do not call a preview tool to show any of them again. Reply with one short sentence and nothing else. Never write the ids: keep them for later calls.`;
 
 /**
  * A thumbnail for one of the caller's generations: its public preview, else a

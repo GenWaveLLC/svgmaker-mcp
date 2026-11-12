@@ -234,7 +234,10 @@ describe('downloads', () => {
   it('answers a download call from an old ChatGPT chat without calling the API', async () => {
     const client = await connect(CHATGPT);
     for (const name of DOWNLOAD_TOOLS) {
-      const result = await client.callTool({ name, arguments: { generation_id: 'gen1', format: 'svg' } });
+      const result = await client.callTool({
+        name,
+        arguments: { generation_id: 'gen1', format: 'svg' },
+      });
       expect(result.isError).toBe(true);
       expect(JSON.stringify(result.content)).toContain("Downloads aren't available in ChatGPT");
     }
@@ -389,8 +392,18 @@ describe('buildListResult', () => {
   });
 
   it('opens the gallery on the same search', async () => {
-    const result = await buildListResult('ids', ['g0', 'g1'], 'gallery', undefined, CHATGPT, 2, 'red robot');
-    expect(result._meta?.['svgmaker/list']?.moreUrl).toBe('https://svgmaker.io/gallery?query=red%20robot');
+    const result = await buildListResult(
+      'ids',
+      ['g0', 'g1'],
+      'gallery',
+      undefined,
+      CHATGPT,
+      2,
+      'red robot'
+    );
+    expect(result._meta?.['svgmaker/list']?.moreUrl).toBe(
+      'https://svgmaker.io/gallery?query=red%20robot'
+    );
   });
 
   it('counts the whole list, not just this page, except for a single image', async () => {
@@ -418,9 +431,9 @@ describe('withImageCard', () => {
   const image = { content: [{ type: 'image' as const, data: 'UE5H', mimeType: 'image/png' }] };
 
   it('outside ChatGPT returns the result unchanged', async () => {
-    expect(await withImageCard(image, 'gen1', 'generations', undefined, { transport: 'http' })).toBe(
-      image
-    );
+    expect(
+      await withImageCard(image, 'gen1', 'generations', undefined, { transport: 'http' })
+    ).toBe(image);
   });
 
   it('gives a generation Edit and opens it on the generations page', async () => {

@@ -76,7 +76,11 @@ export function buildRemoveBackgroundToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_remove_background',
     // Spending credits can't be undone, so ChatGPT asks first; stdio may also overwrite a local file.
-    annotations: { readOnlyHint: false, destructiveHint: ctx.chatgpt || !isHttp, openWorldHint: true },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: ctx.chatgpt || !isHttp,
+      openWorldHint: true,
+    },
     description: ctx.chatgpt
       ? 'Remove the background from an attached, linked, or saved image. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
       : isHttp

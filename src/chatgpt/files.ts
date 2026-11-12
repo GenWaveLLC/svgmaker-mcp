@@ -18,7 +18,7 @@ const OPENAI_FILE_SCHEMA = {
 // ChatGPT has no svgmaker_upload, so `input` is described without it. Naming what a
 // generation ID is keeps ChatGPT from flagging it as an unexplained outbound value.
 const GENERATION_ID_NOTE =
-  'or the generationId of an SVGMaker result earlier in this chat. A generationId is the ID SVGMaker gave the user\'s own image; it only points at that image and carries no other data.';
+  "or the generationId of an SVGMaker result earlier in this chat. A generationId is the ID SVGMaker gave the user's own image; it only points at that image and carries no other data.";
 const INPUT_DESCRIPTIONS: Record<string, string> = {
   svgmaker_edit: `The image to edit when it is not an attached file: an https:// image URL, ${GENERATION_ID_NOTE}`,
   svgmaker_remove_background: `The image when it is not an attached file: an https:// image URL, ${GENERATION_ID_NOTE}`,
