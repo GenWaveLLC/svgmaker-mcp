@@ -8,7 +8,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildErrorResult,
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   INPUT_PARAM_DESCRIPTION,
@@ -152,7 +157,18 @@ export function buildEditToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_edit',
-    description: isHttp ? EDIT_DESCRIPTION_HTTP : EDIT_DESCRIPTION_STDIO,
+    // Spending credits can't be undone, so ChatGPT asks first; stdio may also overwrite a local file.
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: ctx.chatgpt || !isHttp,
+      openWorldHint: true,
+    },
+    description: ctx.chatgpt
+      ? 'Edit an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      : isHttp
+        ? EDIT_DESCRIPTION_HTTP
+        : EDIT_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? EditToolHttpSchema : EditToolObjectSchema),
   };
 }
@@ -167,8 +183,6 @@ export async function handleEditTool(
 
   // Log that the tool is being called
   logToFile('========== SVG EDIT TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
   try {
     const validatedArgs = EditToolInputSchema.parse(args);
@@ -306,13 +320,25 @@ export async function handleEditTool(
         await progressManager.sendFinalProgress();
 
         if (validatedArgs.raster && result.imageUrl) {
-          return buildUrlResult(
+          return await buildFileResult(
             'Raster PNG edited successfully.',
             result.imageUrl,
-            result.imageUrlExpiresIn
+            'png',
+            result.imageUrlExpiresIn,
+            result,
+            client,
+            ctx
           );
         } else if (result.svgUrl) {
-          return buildUrlResult('SVG edited successfully.', result.svgUrl, result.svgUrlExpiresIn);
+          return await buildFileResult(
+            'SVG edited successfully.',
+            result.svgUrl,
+            'svg',
+            result.svgUrlExpiresIn,
+            result,
+            client,
+            ctx
+          );
         } else {
           throw new Error('SVGMaker API did not return a hosted URL.');
         }
@@ -323,9 +349,6 @@ export async function handleEditTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [{ type: 'text', text: `Error editing SVG: ${error.message}` } as TextContent],
-    };
+    return buildErrorResult(`Error editing SVG: ${error.message}`, error, ctx);
   }
 }

@@ -8,7 +8,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildErrorResult,
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   NO_GENERATION_INPUT_PARAM_DESCRIPTION,
@@ -61,7 +66,18 @@ export function buildConvertToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_convert',
-    description: isHttp ? CONVERT_DESCRIPTION_HTTP : CONVERT_DESCRIPTION_STDIO,
+    // Spending credits can't be undone, so ChatGPT asks first; stdio may also overwrite a local file.
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: ctx.chatgpt || !isHttp,
+      openWorldHint: true,
+    },
+    description: ctx.chatgpt
+      ? 'Convert an attached or linked raster image into SVG. Spends account credits. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      : isHttp
+        ? CONVERT_DESCRIPTION_HTTP
+        : CONVERT_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
   };
 }
@@ -76,8 +92,6 @@ export async function handleConvertTool(
 
   // Log that the tool is being called
   logToFile('========== SVG CONVERT TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
   try {
     const validatedArgs = ConvertToolInputSchema.parse(args);
@@ -162,10 +176,14 @@ export async function handleConvertTool(
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return buildUrlResult(
+        return await buildFileResult(
           'Image converted to SVG successfully.',
           result.svgUrl,
-          result.svgUrlExpiresIn
+          'svg',
+          result.svgUrlExpiresIn,
+          result,
+          client,
+          ctx
         );
       }
     } catch (error: any) {
@@ -174,14 +192,6 @@ export async function handleConvertTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text',
-          text: `Error converting image to SVG: ${error.message}`,
-        } as TextContent,
-      ],
-    };
+    return buildErrorResult(`Error converting image to SVG: ${error.message}`, error, ctx);
   }
 }

@@ -8,7 +8,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { ProgressManager } from '../utils/progressUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildErrorResult,
+  buildFileResult,
+  fileResultOutputSchema,
+  rejectOutputPathOverHttp,
+} from '../utils/outputUtils.js';
 import {
   applyImageInput,
   INPUT_PARAM_DESCRIPTION,
@@ -70,7 +75,18 @@ export function buildRemoveBackgroundToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_remove_background',
-    description: isHttp ? REMOVE_BACKGROUND_DESCRIPTION_HTTP : REMOVE_BACKGROUND_DESCRIPTION_STDIO,
+    // Spending credits can't be undone, so ChatGPT asks first; stdio may also overwrite a local file.
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: ctx.chatgpt || !isHttp,
+      openWorldHint: true,
+    },
+    description: ctx.chatgpt
+      ? 'Remove the background from an attached, linked, or saved image. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      : isHttp
+        ? REMOVE_BACKGROUND_DESCRIPTION_HTTP
+        : REMOVE_BACKGROUND_DESCRIPTION_STDIO,
+    ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: zodToJsonSchema(
       isHttp ? RemoveBackgroundToolHttpSchema : RemoveBackgroundToolInputSchema
     ),
@@ -87,8 +103,6 @@ export async function handleRemoveBackgroundTool(
 
   // Log that the tool is being called
   logToFile('========== SVG REMOVE BACKGROUND TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(args, null, 2)}`);
-  logToFile(`Request meta: ${JSON.stringify(request.params._meta, null, 2)}`);
 
   try {
     const validatedArgs = RemoveBackgroundToolInputSchema.parse(args);
@@ -177,10 +191,14 @@ export async function handleRemoveBackgroundTool(
         // Send final progress
         await progressManager.sendFinalProgress();
 
-        return buildUrlResult(
+        return await buildFileResult(
           'Background removed successfully.',
           result.svgUrl,
-          result.svgUrlExpiresIn
+          'svg',
+          result.svgUrlExpiresIn,
+          result,
+          client,
+          ctx
         );
       }
     } catch (error: any) {
@@ -189,14 +207,6 @@ export async function handleRemoveBackgroundTool(
       throw error;
     }
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text',
-          text: `Error removing background: ${error.message}`,
-        } as TextContent,
-      ],
-    };
+    return buildErrorResult(`Error removing background: ${error.message}`, error, ctx);
   }
 }

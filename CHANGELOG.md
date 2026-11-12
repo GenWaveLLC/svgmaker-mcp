@@ -5,7 +5,21 @@ All notable changes to the svgmaker-mcp project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - Unreleased
+## [2.2.0] - 2026-11-12
+
+### Added
+- ChatGPT endpoint at `/chatgpt` on the HTTP transport, with its own protected-resource metadata at `/.well-known/oauth-protected-resource/chatgpt`. `/mcp` is unchanged
+- Result card for generate, edit, convert, remove-background and the preview tools: the image, credits used, and Open / Edit buttons that open the image on svgmaker.io. Tapping the image opens it in ChatGPT's pop-up
+- List card for `svgmaker_generations_list` and `svgmaker_gallery_list`: up to 12 thumbnails and a `+N` tile that opens the rest on svgmaker.io
+- Attached ChatGPT files are accepted as a `file` field on `svgmaker_edit`, `svgmaker_convert` and `svgmaker_remove_background`
+
+### Changed
+- On `/chatgpt`, the user's access token is swapped for an API token with `OAUTH_TOKEN_EXCHANGE_SECRET` instead of being forwarded to the API, and tokens without the `svgmaker` scope are rejected
+- On `/chatgpt`, tools that spend credits are marked destructive so ChatGPT asks before running them
+- On `/chatgpt`, `svgmaker_upload` and the download tools are not offered; files are downloaded on svgmaker.io, and the tool descriptions say downloading depends on the user's plan
+- ChatGPT tool descriptions disclose credit use and that free-account images and prompts are public
+
+## [2.1.0] - 2026-08-13
 
 ### Added
 - HTTP transport (`build/http.js`) for remote/hosted use, served at `https://mcp.svgmaker.io` — the stdio entry point (`build/index.js`) is unchanged and still uses an API key

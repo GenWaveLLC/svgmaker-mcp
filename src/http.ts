@@ -17,17 +17,27 @@ const AUTH_SERVER = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
   ''
 );
 
-// Base URL of the protected resource API (api.svgmaker.io) the JWT is minted for.
-// This is the expected `aud` claim. Trailing slash stripped for a clean compare.
-const API_RESOURCE = (process.env.SVGMAKER_API_RESOURCE || 'https://api.svgmaker.io').replace(
-  /\/+$/,
-  ''
-);
+// The auth server's token endpoint, where a user's MCP token is swapped for an API token.
+const TOKEN_ENDPOINT = `${AUTH_SERVER}/api/oauth/token`;
+
+// The header our swap secret goes in; the auth server holds the same secret.
+const EXCHANGE_SECRET_HEADER = 'x-token-exchange-secret';
+const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
+
+// The permission a token must carry to use this server.
+const SCOPE = 'svgmaker';
+
+// Refresh an API token this long before it expires.
+const API_TOKEN_MARGIN_MS = 60_000;
 
 // Remote JWKS for verifying RS256 access-token signatures. jose fetches the key
 // set from the auth server's well-known endpoint, caches it, and refreshes on a
 // `kid` miss, so we don't need our own token/JWKS cache here.
 const JWKS = createRemoteJWKSet(new URL(`${AUTH_SERVER}/.well-known/jwks.json`));
+
+// The MCP endpoints. /chatgpt serves the same tools plus ChatGPT's result
+// card; /mcp stays plain for every other client (Claude, Cursor, ...).
+const MCP_PATHS = ['/mcp', '/chatgpt'];
 
 /**
  * Send a JSON response. Safe no-op if headers were already sent.
@@ -84,9 +94,14 @@ function getResourceUrl(req: IncomingMessage): string {
  * metadata. This WWW-Authenticate header is exactly what makes ChatGPT/Claude/Cursor
  * pop open the browser login flow instead of just erroring out.
  */
-function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: string): void {
+function sendUnauthorized(
+  res: ServerResponse,
+  req: IncomingMessage,
+  path: string,
+  message: string
+): void {
   if (res.headersSent) return;
-  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource/mcp`;
+  const metadataUrl = `${getResourceUrl(req)}/.well-known/oauth-protected-resource${path}`;
   res.writeHead(401, {
     'Content-Type': 'application/json',
     'WWW-Authenticate': `Bearer resource_metadata="${metadataUrl}"`,
@@ -96,24 +111,72 @@ function sendUnauthorized(res: ServerResponse, req: IncomingMessage, message: st
 
 /**
  * Verify an OAuth access token locally against the auth server's JWKS. We require
- * an RS256 JWT signed by svgmaker.io with our exact `iss`/`aud`; `jwtVerify` with
- * these options rejects bad signatures, wrong issuer/audience, expired tokens and
- * anything that isn't a proper JWT. A small clock tolerance absorbs skew. On any
- * failure (including an unreachable JWKS) we treat the token as unauthorized — we
- * never fall back to trusting a token just because it is bearer-shaped.
+ * an RS256 JWT signed by svgmaker.io and issued for this server: its `aud` is one
+ * of our resource URLs (the root, /mcp or /chatgpt), never the API, and its
+ * `scope` grants svgmaker. `jwtVerify`
+ * with these options rejects bad signatures, wrong issuer/audience, expired tokens
+ * and anything that isn't a proper JWT. A small clock tolerance absorbs skew. On
+ * any failure (including an unreachable JWKS) we treat the token as unauthorized —
+ * we never fall back to trusting a token just because it is bearer-shaped.
  *
  * Returns the verified `sub` (Firebase UID) on success, or undefined on failure.
  */
-async function verifyAccessToken(token: string): Promise<string | undefined> {
+async function verifyAccessToken(token: string, resourceUrl: string): Promise<string | undefined> {
   try {
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: AUTH_SERVER,
-      audience: API_RESOURCE,
+      audience: ['', ...MCP_PATHS].map((path) => `${resourceUrl}${path}`),
       clockTolerance: 30,
     });
-    // A verified token must identify a user. Reject (undefined) when `sub` is
-    // missing or not a non-empty string instead of letting it through.
-    return typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+    // A verified token must identify a user and carry the svgmaker scope.
+    const scoped = typeof payload.scope === 'string' && payload.scope.split(' ').includes(SCOPE);
+    return scoped && typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// API tokens by the MCP token they were swapped for, until they expire.
+const apiTokens = new Map<string, { token: string; expiresAt: number }>();
+
+/**
+ * Swap a verified MCP token for an API token for the same user at the auth
+ * server (OAuth token exchange), reusing one swapped earlier until it nearly
+ * expires. The MCP token itself never leaves this server.
+ *
+ * Returns the API token, or undefined when the swap fails.
+ */
+async function apiTokenFor(mcpToken: string): Promise<string | undefined> {
+  const now = Date.now();
+  const cached = apiTokens.get(mcpToken);
+  if (cached && cached.expiresAt - API_TOKEN_MARGIN_MS > now) return cached.token;
+
+  const secret = process.env.OAUTH_TOKEN_EXCHANGE_SECRET;
+  if (!secret) return undefined;
+  try {
+    const response = await fetch(TOKEN_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        [EXCHANGE_SECRET_HEADER]: secret,
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: mcpToken,
+        subject_token_type: ACCESS_TOKEN_TYPE,
+      }),
+    });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
+    if (typeof body.access_token !== 'string' || typeof body.expires_in !== 'number') {
+      return undefined;
+    }
+
+    for (const [key, entry] of apiTokens) {
+      if (entry.expiresAt <= now) apiTokens.delete(key);
+    }
+    apiTokens.set(mcpToken, { token: body.access_token, expiresAt: now + body.expires_in * 1000 });
+    return body.access_token;
   } catch {
     return undefined;
   }
@@ -143,25 +206,35 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
 }
 
 /**
- * Handle a `POST /mcp` request: authenticate, build a per-request client and a
- * fresh stateless MCP server, then delegate to the Streamable HTTP transport.
+ * Handle a `POST` to an MCP endpoint (`path`): authenticate, build a per-request
+ * client and a fresh stateless MCP server, then delegate to the Streamable HTTP
+ * transport.
  */
-async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleMcp(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   // a. Extract the Bearer access token. A missing token gets the browser-flow 401.
   const token = extractBearerToken(req);
   if (!token) {
-    sendUnauthorized(res, req, 'Missing OAuth access token');
+    sendUnauthorized(res, req, path, 'Missing OAuth access token');
     return;
   }
 
   // a2. Verify the JWT locally against the auth server's JWKS before doing any
   //     real work. A failed verification gets the browser-flow 401 too.
-  const userId = await verifyAccessToken(token);
+  const userId = await verifyAccessToken(token, getResourceUrl(req));
   if (!userId) {
-    sendUnauthorized(res, req, 'Invalid or expired OAuth access token');
+    sendUnauthorized(res, req, path, 'Invalid or expired OAuth access token');
     return;
   }
-  logToFile(`Authenticated /mcp request for user ${userId}`);
+  logToFile('Authenticated MCP request');
+
+  // a3. Swap it for the API token the tools call api.svgmaker.io with. A failed
+  //     swap is our fault, not the user's, so it isn't a 401 (no new sign-in).
+  const apiToken = await apiTokenFor(token);
+  if (!apiToken) {
+    logToFile('Token exchange failed');
+    sendJson(res, 502, { error: 'Could not reach SVGMaker sign-in. Try again shortly.' });
+    return;
+  }
 
   // b. Read and parse the request body.
   let parsedBody: unknown;
@@ -172,18 +245,21 @@ async function handleMcp(req: IncomingMessage, res: ServerResponse): Promise<voi
     return;
   }
 
-  // c. Build a per-request client. The verified JWT is forwarded downstream to
-  //    api.svgmaker.io as a Bearer token (the SDK's accessToken mode), not as an
-  //    x-api-key. apiKey stays empty here — HTTP transport has no static key.
+  // c. Build a per-request client. The API token is sent to api.svgmaker.io as
+  //    a Bearer token (the SDK's accessToken mode), not as an x-api-key. apiKey
+  //    stays empty here — HTTP transport has no static key.
   const client = createSvgmakerClient(
     '',
     process.env.SVGMAKER_RATE_LIMIT_RPM,
     process.env.SVGMAKER_BASE_URL || DEFAULT_BASE_URL,
-    token
+    apiToken
   );
 
   // d. Build a fresh server.
-  const server = createMcpServer(client, { transport: 'http' });
+  const server = createMcpServer(client, {
+    transport: 'http',
+    chatgpt: path === '/chatgpt',
+  });
 
   // e. Create a stateless transport and wire it up.
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -218,11 +294,11 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
     return;
   }
 
-  if (req.method === 'POST' && url === '/mcp') {
+  if (req.method === 'POST' && MCP_PATHS.includes(url)) {
     try {
-      await handleMcp(req, res);
-    } catch (err) {
-      logToFile(`Error handling /mcp request: ${err instanceof Error ? err.stack : String(err)}`);
+      await handleMcp(req, res, url);
+    } catch {
+      logToFile('Error handling MCP request');
       sendJson(res, 500, { error: 'Internal server error' });
     }
     return;
@@ -230,18 +306,20 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
 
   // OAuth Protected Resource Metadata (RFC 9728). Clients fetch this to discover
   // which Authorization Server can log the user in, which kicks off the browser
-  // flow. We serve it at BOTH the root path and the `/mcp` path-suffixed location:
-  // some clients (Claude Code) probe the root, others (ChatGPT) follow RFC 9728
-  // and probe `/.well-known/oauth-protected-resource/mcp`. The `resource` we
-  // return matches the path so it points at the same MCP endpoint either way.
-  if (
-    req.method === 'GET' &&
-    (url === '/.well-known/oauth-protected-resource' ||
-      url === '/.well-known/oauth-protected-resource/mcp')
-  ) {
+  // flow. We serve it at the root path and at each endpoint's path-suffixed
+  // location: some clients (Claude Code) probe the root, others (ChatGPT) follow
+  // RFC 9728 and probe `/.well-known/oauth-protected-resource/<endpoint path>`.
+  // The `resource` we return matches the path it was asked for.
+  const WELL_KNOWN = '/.well-known/oauth-protected-resource';
+  if (req.method === 'GET' && url.startsWith(WELL_KNOWN)) {
+    const path = url.slice(WELL_KNOWN.length);
+    if (path && !MCP_PATHS.includes(path)) {
+      sendJson(res, 404, { error: 'Not found' });
+      return;
+    }
     const base = getResourceUrl(req);
     sendJson(res, 200, {
-      resource: url.endsWith('/mcp') ? `${base}/mcp` : base,
+      resource: `${base}${path}`,
       authorization_servers: [AUTH_SERVER],
     });
     return;
@@ -254,7 +332,7 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
   // stream after connecting, and a 404 makes them treat the session as dead and
   // tombstone the transport, whereas a 405 tells them to skip the optional
   // stream and continue over POST.
-  if ((req.method === 'GET' || req.method === 'DELETE') && url === '/mcp') {
+  if ((req.method === 'GET' || req.method === 'DELETE') && MCP_PATHS.includes(url)) {
     res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));
     return;

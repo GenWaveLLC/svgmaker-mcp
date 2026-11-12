@@ -1,6 +1,6 @@
 {
   "name": "@genwave/svgmaker-mcp",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "MCP server for generating, editing, and converting SVG images using SVGMaker API",
   "type": "module",
   "main": "build/index.js",
@@ -15,7 +15,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "rimraf build && tsc",
+    "build": "rimraf build && tsc && cp -r src/chatgpt/widgets build/chatgpt/",
     "start": "node build/index.js",
     "dev": "tsx watch src/index.ts",
     "prepare": "npm run build",

@@ -9,7 +9,12 @@ import * as svgmakerService from '../services/svgmakerService.js';
 import * as fileUtils from '../utils/fileUtils.js';
 import { logToFile } from '../utils/logUtils.js';
 import { fetchRemotePreview } from '../utils/previewUtils.js';
-import { buildUrlResult, rejectOutputPathOverHttp } from '../utils/outputUtils.js';
+import {
+  buildListResult,
+  buildUrlResult,
+  rejectOutputPathOverHttp,
+  withImageCard,
+} from '../utils/outputUtils.js';
 
 // ── Generations List Tool ──
 
@@ -25,11 +30,12 @@ const GenerationsListToolInputSchema = z.object({
   query: z.string().optional().describe('Free-text search over the prompt and description.'),
 });
 
-export function buildGenerationsListToolDefinition(_ctx: ToolContext) {
+export function buildGenerationsListToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_list',
-    description:
-      'List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, _download, _share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    // ChatGPT has no download tool, so its description leaves _download out.
+    description: `List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, ${ctx.chatgpt ? '' : '_download, '}_share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.`,
     inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
   };
 }
@@ -38,10 +44,9 @@ export async function handleGenerationsListTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS LIST TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsListToolInputSchema.parse(request.params.arguments);
@@ -71,11 +76,14 @@ export async function handleGenerationsListTool(
     lines.push('');
     lines.push(`Has Next Page: ${p.hasNextPage}`);
 
-    const text = lines.join('\n');
-
-    return {
-      content: [{ type: 'text', text } as TextContent],
-    };
+    return await buildListResult(
+      lines.join('\n'),
+      result.items ?? [],
+      'generations',
+      client,
+      ctx,
+      p.totalItems
+    );
   } catch (error: any) {
     return {
       isError: true,
@@ -101,6 +109,7 @@ const GenerationsGetToolInputSchema = z.object({
 export function buildGenerationsGetToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_get',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the details of one of your generations by id: the prompt used, type, quality, public/private state, hashtags and categories. Returns metadata as text, not the image — use svgmaker_generations_preview to see the image itself.',
     inputSchema: zodToJsonSchema(GenerationsGetToolInputSchema),
@@ -111,10 +120,9 @@ export async function handleGenerationsGetTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS GET TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsGetToolInputSchema.parse(request.params.arguments);
@@ -136,9 +144,13 @@ export async function handleGenerationsGetTool(
       `- Categories: ${categories}`,
     ].join('\n');
 
-    return {
-      content: [{ type: 'text', text } as TextContent],
-    };
+    return await withImageCard(
+      { content: [{ type: 'text', text } as TextContent] },
+      result.id,
+      'generations',
+      client,
+      ctx
+    );
   } catch (error: any) {
     return {
       isError: true,
@@ -164,6 +176,7 @@ const GenerationsDeleteToolInputSchema = z.object({
 export function buildGenerationsDeleteToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_delete',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     description:
       'Delete one of your generations and its files. The deletion is permanent and cannot be undone, so confirm the exact id with the user before you call this. Requires a paid account. Returns a confirmation message.',
     inputSchema: zodToJsonSchema(GenerationsDeleteToolInputSchema),
@@ -177,7 +190,6 @@ export async function handleGenerationsDeleteTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DELETE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsDeleteToolInputSchema.parse(request.params.arguments);
@@ -211,8 +223,9 @@ const GenerationsShareToolInputSchema = z.object({
 export function buildGenerationsShareToolDefinition(_ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_share',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description:
-      'Make one of your generations publicly visible and return its permanent share URL. Use this when the user wants a link other people can open. This exposes the image publicly, so ask first if the intent is unclear.',
+      'Make one of your generations publicly visible and return its permanent share URL. Call this only when the user asks to share the image or make it public; never call it on your own, for example to get a link to show the user. To point the user at their own images, link the SVGMaker generations page instead.',
     inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
   };
 }
@@ -224,7 +237,6 @@ export async function handleGenerationsShareTool(
   _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS SHARE TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsShareToolInputSchema.parse(request.params.arguments);
@@ -282,6 +294,8 @@ export function buildGenerationsDownloadToolDefinition(ctx: ToolContext) {
   const isHttp = ctx.transport === 'http';
   return {
     name: 'svgmaker_generations_download',
+    // Over stdio it can overwrite output_path; HTTP only returns a hosted URL.
+    annotations: { readOnlyHint: isHttp, destructiveHint: !isHttp, openWorldHint: false },
     description: isHttp
       ? 'Download one of your generations in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_generations_preview instead when you only need to look at the image.'
       : 'Download one of your generations in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Use svgmaker_generations_preview instead when you only need to look at the image.',
@@ -301,7 +315,6 @@ export async function handleGenerationsDownloadTool(
   ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS DOWNLOAD TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsDownloadToolInputSchema.parse(request.params.arguments);
@@ -377,11 +390,13 @@ const GenerationsPreviewToolInputSchema = z.object({
     .describe('Id of one of your generations, as returned by svgmaker_generations_list.'),
 });
 
-export function buildGenerationsPreviewToolDefinition(_ctx: ToolContext) {
+export function buildGenerationsPreviewToolDefinition(ctx: ToolContext) {
   return {
     name: 'svgmaker_generations_preview',
-    description:
-      'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    description: ctx.chatgpt
+      ? "Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like. The card's Open button shows it on svgmaker.io, where downloading depends on the user's SVGMaker plan. Use svgmaker_gallery_preview for a public gallery item."
+      : 'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
     inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
   };
 }
@@ -390,10 +405,9 @@ export async function handleGenerationsPreviewTool(
   server: Server,
   request: { params: { name: string; _meta?: RequestMeta; arguments?: any } },
   client?: SVGMakerClient,
-  _ctx: ToolContext = DEFAULT_TOOL_CONTEXT
+  ctx: ToolContext = DEFAULT_TOOL_CONTEXT
 ) {
   logToFile('========== SVG GENERATIONS PREVIEW TOOL CALLED ==========');
-  logToFile(`Arguments: ${JSON.stringify(request.params.arguments, null, 2)}`);
 
   try {
     const validatedArgs = GenerationsPreviewToolInputSchema.parse(request.params.arguments);
@@ -407,15 +421,13 @@ export async function handleGenerationsPreviewTool(
     );
     const base64Data = await fetchRemotePreview(result.url);
 
-    return {
-      content: [
-        {
-          type: 'image',
-          data: base64Data,
-          mimeType: 'image/png',
-        } as ImageContent,
-      ],
-    };
+    return await withImageCard(
+      { content: [{ type: 'image', data: base64Data, mimeType: 'image/png' } as ImageContent] },
+      validatedArgs.generation_id,
+      'generations',
+      client,
+      ctx
+    );
   } catch (error: any) {
     return {
       isError: true,
