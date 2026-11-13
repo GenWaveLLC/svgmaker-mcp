@@ -1,7 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ImageContent, TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import { logToFile } from '../utils/logUtils.js';
@@ -32,7 +31,7 @@ export function buildPreviewToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Show a local image file (PNG, SVG, WebP or SVGZ) in the conversation as a PNG image. Use this to look at a file already on disk. Works over the stdio transport only, because it reads the local filesystem. To look at an SVGMaker generation or a gallery item, use svgmaker_generations_preview or svgmaker_gallery_preview with an id instead.',
-    inputSchema: zodToJsonSchema(PreviewToolInputSchema),
+    inputSchema: z.toJSONSchema(PreviewToolInputSchema, { io: 'input' }),
   };
 }
 

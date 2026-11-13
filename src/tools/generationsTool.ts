@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -36,7 +35,7 @@ export function buildGenerationsListToolDefinition(ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     // ChatGPT has no download tool, so its description leaves _download out.
     description: `List the ids of your own SVG generations, with optional filters and pagination. Use this to find the id of earlier work before calling svgmaker_generations_get, _preview, ${ctx.chatgpt ? '' : '_download, '}_share or _delete. For public community images, use svgmaker_gallery_list instead. Returns ids and page counts only, not images.`,
-    inputSchema: zodToJsonSchema(GenerationsListToolInputSchema),
+    inputSchema: z.toJSONSchema(GenerationsListToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -112,7 +111,7 @@ export function buildGenerationsGetToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the details of one of your generations by id: the prompt used, type, quality, public/private state, hashtags and categories. Returns metadata as text, not the image — use svgmaker_generations_preview to see the image itself.',
-    inputSchema: zodToJsonSchema(GenerationsGetToolInputSchema),
+    inputSchema: z.toJSONSchema(GenerationsGetToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -179,7 +178,7 @@ export function buildGenerationsDeleteToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     description:
       'Delete one of your generations and its files. The deletion is permanent and cannot be undone, so confirm the exact id with the user before you call this. Requires a paid account. Returns a confirmation message.',
-    inputSchema: zodToJsonSchema(GenerationsDeleteToolInputSchema),
+    inputSchema: z.toJSONSchema(GenerationsDeleteToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -226,7 +225,7 @@ export function buildGenerationsShareToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description:
       'Make one of your generations publicly visible and return its permanent share URL. Call this only when the user asks to share the image or make it public; never call it on your own, for example to get a link to show the user. To point the user at their own images, link the SVGMaker generations page instead.',
-    inputSchema: zodToJsonSchema(GenerationsShareToolInputSchema),
+    inputSchema: z.toJSONSchema(GenerationsShareToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -300,10 +299,11 @@ export function buildGenerationsDownloadToolDefinition(ctx: ToolContext) {
       ? 'Download one of your generations in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_generations_preview instead when you only need to look at the image.'
       : 'Download one of your generations in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. Requires a paid account. Use svgmaker_generations_preview instead when you only need to look at the image.',
     // The runtime schema keeps output_path so the guard can answer a stale client.
-    inputSchema: zodToJsonSchema(
+    inputSchema: z.toJSONSchema(
       isHttp
         ? GenerationsDownloadToolInputSchema.omit({ output_path: true })
-        : GenerationsDownloadToolInputSchema
+        : GenerationsDownloadToolInputSchema,
+      { io: 'input' }
     ),
   };
 }
@@ -397,7 +397,7 @@ export function buildGenerationsPreviewToolDefinition(ctx: ToolContext) {
     description: ctx.chatgpt
       ? "Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like. The card's Open button shows it on svgmaker.io, where downloading depends on the user's SVGMaker plan. Use svgmaker_gallery_preview for a public gallery item."
       : 'Show one of your generations in the conversation as a PNG image. Use this to check what a generation looks like, on any transport. Use svgmaker_generations_download instead when the user wants the file or a URL, and svgmaker_gallery_preview for a public gallery item.',
-    inputSchema: zodToJsonSchema(GenerationsPreviewToolInputSchema),
+    inputSchema: z.toJSONSchema(GenerationsPreviewToolInputSchema, { io: 'input' }),
   };
 }
 

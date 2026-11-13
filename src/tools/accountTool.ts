@@ -1,7 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -17,7 +16,7 @@ export function buildAccountInfoToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the SVGMaker account identity and credit balances: email, display name, account type, premium credits (spent first) and credits. Use this to check credits before a paid operation, or to confirm which account the key belongs to. For per-request counts and credit spend over time, use svgmaker_account_usage instead. Takes no arguments.',
-    inputSchema: zodToJsonSchema(AccountInfoToolInputSchema),
+    inputSchema: z.toJSONSchema(AccountInfoToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -91,7 +90,7 @@ export function buildAccountUsageToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get SVGMaker API usage statistics for the account: request counts, credits used, success and error counts, and breakdowns by category and by day. Use this to answer "how much have I used"; use svgmaker_account_info for the current credit balance. Pick one time window: either days, or a start/end pair, or neither for all-time.',
-    inputSchema: zodToJsonSchema(AccountUsageToolInputSchema),
+    inputSchema: z.toJSONSchema(AccountUsageToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -106,7 +105,7 @@ export async function handleAccountUsageTool(
   try {
     const validatedArgs = AccountUsageToolInputSchema.parse(request.params.arguments);
 
-    // Manual validation for constraints that zodToJsonSchema doesn't handle well
+    // Manual validation for constraints the advertised JSON schema can't express
     if (
       validatedArgs.days !== undefined &&
       (validatedArgs.start !== undefined || validatedArgs.end !== undefined)
