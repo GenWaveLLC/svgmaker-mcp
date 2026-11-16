@@ -24,6 +24,9 @@ const TOKEN_ENDPOINT = `${AUTH_SERVER}/api/oauth/token`;
 const EXCHANGE_SECRET_HEADER = 'x-token-exchange-secret';
 const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 
+// OpenAI Apps domain verification token, served at /.well-known/openai-apps-challenge.
+const OPENAI_APPS_CHALLENGE = '7dPzkb_Uni1zCI1QIRkATUy6skBc6hNRU1b5rEQuacw';
+
 // The permission a token must carry to use this server.
 const SCOPE = 'svgmaker';
 
@@ -291,6 +294,13 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
   if (req.method === 'GET' && url === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('ok');
+    return;
+  }
+
+  // OpenAI Apps domain verification: the token from the OpenAI dashboard, as plain text.
+  if (req.method === 'GET' && url === '/.well-known/openai-apps-challenge') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(OPENAI_APPS_CHALLENGE);
     return;
   }
 
