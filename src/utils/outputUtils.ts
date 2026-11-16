@@ -12,7 +12,6 @@ import {
 import { fetchCardPreview } from './previewUtils.js';
 import { logToFile } from './logUtils.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export const HTTP_OUTPUT_PATH_ERROR =
   'output_path is not supported over the HTTPS transport. Call the tool again without output_path: the result comes back as an SVGMaker-hosted URL, and you should give that URL to the user or fetch it yourself.';
@@ -63,7 +62,7 @@ const FileResultSchema = z.object({
 });
 
 export type FileResult = z.infer<typeof FileResultSchema>;
-export const fileResultOutputSchema = zodToJsonSchema(FileResultSchema);
+export const fileResultOutputSchema = z.toJSONSchema(FileResultSchema);
 
 /** What only the ChatGPT result card gets, in the result's `_meta`. The model never sees it. */
 export interface FileCard {

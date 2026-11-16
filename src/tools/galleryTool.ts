@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, ImageContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -38,7 +37,7 @@ export function buildGalleryListToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Browse the public SVGMaker gallery and list item ids, with optional filters and pagination. Use this to find reference or inspiration images made by other users. For images the caller made themselves, use svgmaker_generations_list instead. Returns ids and page counts only, not images.',
-    inputSchema: zodToJsonSchema(GalleryListToolInputSchema),
+    inputSchema: z.toJSONSchema(GalleryListToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -117,7 +116,7 @@ export function buildGalleryGetToolDefinition(_ctx: ToolContext) {
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     description:
       'Get the details of a public gallery item by id: the prompt used, type, quality, hashtags and categories. Returns metadata as text, not the image — use svgmaker_gallery_preview to see the image itself.',
-    inputSchema: zodToJsonSchema(GalleryGetToolInputSchema),
+    inputSchema: z.toJSONSchema(GalleryGetToolInputSchema, { io: 'input' }),
   };
 }
 
@@ -200,10 +199,11 @@ export function buildGalleryDownloadToolDefinition(ctx: ToolContext) {
       ? 'Download a public gallery item in a chosen format and get back a time-limited SVGMaker-hosted URL for the file. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Give the returned URL to the user, or fetch it yourself; the download cannot be written anywhere for you. Use svgmaker_gallery_preview instead when you only need to look at the image.'
       : 'Download a public gallery item in a chosen format. Saves the file to output_path when you pass one, otherwise returns a time-limited SVGMaker-hosted download URL. Formats: svg, svg-optimized, svgz, png, webp. The vector formats cost 1 credit each, png and webp are free. Use svgmaker_gallery_preview instead when you only need to look at the image.',
     // The runtime schema keeps output_path so the guard can answer a stale client.
-    inputSchema: zodToJsonSchema(
+    inputSchema: z.toJSONSchema(
       isHttp
         ? GalleryDownloadToolInputSchema.omit({ output_path: true })
-        : GalleryDownloadToolInputSchema
+        : GalleryDownloadToolInputSchema,
+      { io: 'input' }
     ),
   };
 }
@@ -297,7 +297,7 @@ export function buildGalleryPreviewToolDefinition(ctx: ToolContext) {
     description: ctx.chatgpt
       ? "Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, and it costs no credits. The card's Open button shows it on svgmaker.io, where downloading depends on the user's SVGMaker plan. Use svgmaker_generations_preview for generations the caller made."
       : 'Show a public gallery item in the conversation as a PNG image. Use this to check what a gallery item looks like, on any transport, and it costs no credits. Use svgmaker_gallery_download instead when the user wants the file or a URL, and svgmaker_generations_preview for generations the caller made.',
-    inputSchema: zodToJsonSchema(GalleryPreviewToolInputSchema),
+    inputSchema: z.toJSONSchema(GalleryPreviewToolInputSchema, { io: 'input' }),
   };
 }
 

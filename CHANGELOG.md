@@ -5,6 +5,16 @@ All notable changes to the svgmaker-mcp project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-11-16
+
+### Security
+- Upgrade `zod` from v3 to v4 (4.6.7), fixing GHSA-mrhx-c7xc-m3w5: validating oversized constrained collections could exhaust memory. Tool input schemas are now built with zod's own `z.toJSONSchema` instead of `zod-to-json-schema`; tool names, parameters and defaults are unchanged
+- Upgrade `@genwave/svgmaker-sdk` to 1.3.1, which also moves to zod v4
+- Upgrade `vitest` to v4 to fix dev dependency security advisories
+
+### Fixed
+- On `/chatgpt`, requests to remove or make a background transparent went to `svgmaker_edit`. The tool descriptions now send them to `svgmaker_remove_background`
+
 ## [2.2.0] - 2026-11-12
 
 ### Added

@@ -1,7 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { TextContent, RequestMeta } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { SVGMakerClient } from '@genwave/svgmaker-sdk';
 import { DEFAULT_TOOL_CONTEXT, type ToolContext } from '../types/toolContext.js';
 import * as svgmakerService from '../services/svgmakerService.js';
@@ -78,7 +77,9 @@ export function buildConvertToolDefinition(ctx: ToolContext) {
         ? CONVERT_DESCRIPTION_HTTP
         : CONVERT_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
-    inputSchema: zodToJsonSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema),
+    inputSchema: z.toJSONSchema(isHttp ? ConvertToolHttpSchema : ConvertToolInputSchema, {
+      io: 'input',
+    }),
   };
 }
 
