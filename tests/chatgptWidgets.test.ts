@@ -295,6 +295,7 @@ describe('buildFileResult', () => {
         url: 'https://svgmaker.io/api/files/t',
         openUrl: 'https://svgmaker.io/generations?open=gen1',
         editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+        downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
         creditsUsed: 2,
@@ -325,6 +326,7 @@ describe('buildFileResult', () => {
       url: 'https://svgmaker.io/api/files/t',
       openUrl: 'https://svgmaker.io/generations?open=gen1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,
@@ -436,7 +438,7 @@ describe('withImageCard', () => {
     ).toBe(image);
   });
 
-  it('gives a generation Edit and opens it on the generations page', async () => {
+  it('gives a generation Edit and Download and opens it on the generations page', async () => {
     const result = await withImageCard(image, 'gen1', 'generations', undefined, CHATGPT);
     expect(result.content[0]).toEqual(image.content[0]);
     expect(result.content[1]).toMatchObject({ type: 'text' });
@@ -444,6 +446,7 @@ describe('withImageCard', () => {
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/generations?open=gen1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
     });
