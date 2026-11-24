@@ -118,6 +118,9 @@ const GenerateToolHttpSchema = GenerateToolObjectSchema.omit({ output_path: true
     ),
 });
 
+// ChatGPT saves every image to the account: no raster PNG, no unsaved result.
+const GenerateToolChatgptSchema = GenerateToolHttpSchema.omit({ raster: true, storage: true });
+
 const GENERATE_DESCRIPTION_STDIO =
   'Generate a new SVG image from a text prompt. Use this to create artwork from a description; use svgmaker_edit to change an existing image, and svgmaker_convert to vectorize a raster image. Write a detailed prompt covering subject, style, colors and composition. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL. Quality defaults to medium.';
 
@@ -135,14 +138,19 @@ export function buildGenerateToolDefinition(ctx: ToolContext) {
       openWorldHint: true,
     },
     description: ctx.chatgpt
-      ? 'Generate a new image from a prompt. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a Download button that downloads it on SVGMaker, and an Open button that shows the image on SVGMaker. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      ? "Generate a new image from a prompt. Spends account credits and saves every result to the user's SVGMaker account. Always makes an SVG; for PNG, JPG, WebP or BMP, the user picks the format in the card's Download button on SVGMaker. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a Download button that downloads it on SVGMaker, and an Open button that shows the image on SVGMaker. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again."
       : isHttp
         ? GENERATE_DESCRIPTION_HTTP
         : GENERATE_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
-    inputSchema: z.toJSONSchema(isHttp ? GenerateToolHttpSchema : GenerateToolObjectSchema, {
-      io: 'input',
-    }),
+    inputSchema: z.toJSONSchema(
+      isHttp
+        ? ctx.chatgpt
+          ? GenerateToolChatgptSchema
+          : GenerateToolHttpSchema
+        : GenerateToolObjectSchema,
+      { io: 'input' }
+    ),
   };
 }
 
@@ -158,7 +166,12 @@ export async function handleGenerateTool(
   logToFile('========== SVG GENERATE TOOL CALLED ==========');
 
   try {
-    const validatedArgs = GenerateToolInputSchema.parse(args);
+    // A PNG asked for in ChatGPT is made as an SVG; the result text says so.
+    const rasterDropped = ctx.chatgpt && args?.raster === true;
+    // ChatGPT's schema has neither option; drop them if the model sends them anyway.
+    const validatedArgs = GenerateToolInputSchema.parse(
+      ctx.chatgpt ? { ...args, raster: undefined, storage: undefined } : args
+    );
 
     const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
     if (outputPathRejection) return outputPathRejection;
@@ -298,7 +311,9 @@ export async function handleGenerateTool(
           );
         } else if (result.svgUrl) {
           return await buildFileResult(
-            'SVG generated successfully.',
+            rasterDropped
+              ? "SVG generated successfully. ChatGPT makes SVGs only; the user can download it as PNG, JPG, WebP or BMP from the card's Download button on SVGMaker."
+              : 'SVG generated successfully.',
             result.svgUrl,
             'svg',
             result.svgUrlExpiresIn,

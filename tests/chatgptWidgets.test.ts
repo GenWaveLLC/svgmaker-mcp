@@ -155,7 +155,11 @@ describe('result card widget', () => {
       const client = await connect(CHATGPT);
       try {
         const { tools } = await client.listTools();
-        expect(tools.find((tool) => tool.name === name)?.outputSchema).toBeDefined();
+        const tool = tools.find((t) => t.name === name);
+        expect(tool?.outputSchema).toBeDefined();
+        // ChatGPT saves every image, so it gets no raster or storage option.
+        expect(tool?.inputSchema.properties).not.toHaveProperty('raster');
+        expect(tool?.inputSchema.properties).not.toHaveProperty('storage');
         // The MCP client validates successful results against the tool's outputSchema.
         const result = await client.callTool({ name, arguments: args });
         expect(result.isError).not.toBe(true);
@@ -165,9 +169,11 @@ describe('result card widget', () => {
           premiumCredits: 35,
           credits: 5,
         });
-        expect(result.structuredContent?.format).toBe(
-          'raster' in args && args.raster ? 'png' : 'svg'
-        );
+        // A raster sent anyway is ignored: the result is still a saved SVG.
+        expect(result.structuredContent?.format).toBe('svg');
+        const text = (result.content as { text?: string }[])[0]?.text ?? '';
+        if ('raster' in args) expect(text).toContain('PNG, JPG, WebP or BMP');
+        else expect(text).not.toContain('PNG, JPG, WebP or BMP');
       } finally {
         await client.close();
       }
@@ -322,7 +328,15 @@ describe('buildFileResult', () => {
     vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: false } as any);
     const unsaved = await buildFileResult(...args, CHATGPT, false);
     expect(unsaved._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
-    const raster = await buildFileResult(args[0], args[1], 'png', args[3], args[4], args[5], CHATGPT);
+    const raster = await buildFileResult(
+      args[0],
+      args[1],
+      'png',
+      args[3],
+      args[4],
+      args[5],
+      CHATGPT
+    );
     expect(raster._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
   });
 
