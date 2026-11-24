@@ -338,7 +338,8 @@ export async function handleEditTool(
             result.svgUrlExpiresIn,
             result,
             client,
-            ctx
+            ctx,
+            validatedArgs.storage !== false
           );
         } else {
           throw new Error('SVGMaker API did not return a hosted URL.');

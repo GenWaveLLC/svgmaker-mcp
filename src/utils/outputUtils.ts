@@ -72,7 +72,7 @@ export interface FileCard {
   openUrl?: string;
   /** Opens the image in the SVGMaker editor; set only for an SVG with a generation id. */
   editUrl?: string;
-  /** Opens the image's download dialog on the generations page; set only for one of the user's generations. */
+  /** Opens the image's download dialog on the generations page; set only for one of the user's stored SVGs. */
   downloadUrl?: string;
   generationsUrl: string;
   /** WebP data URL of the image, saved with the chat so the card still shows it after `url` expires. */
@@ -101,7 +101,8 @@ const RESULT_CARD_NOTE =
  * `buildUrlResult` does. On the ChatGPT endpoint the text links the
  * generation's public page when it is public, else the user's generations
  * page, and the card gets the file URL, a preview and both credit balances in
- * `_meta`, which the model never sees.
+ * `_meta`, which the model never sees. `stored` is false when the file was not
+ * saved to the account (`storage: false`), which leaves out the Download button.
  */
 export async function buildFileResult(
   description: string,
@@ -110,7 +111,8 @@ export async function buildFileResult(
   expiresIn: string | undefined,
   response: FileResponse,
   client: SVGMakerClient | undefined,
-  ctx: ToolContext
+  ctx: ToolContext,
+  stored = true
 ): Promise<{
   content: TextContent[];
   structuredContent: FileResult;
@@ -131,7 +133,11 @@ export async function buildFileResult(
       response.generationId && format === 'svg'
         ? `${EDITOR_URL}?generationId=${encodeURIComponent(response.generationId)}`
         : undefined,
-    downloadUrl: response.generationId ? downloadUrl(response.generationId) : undefined,
+    // A raster or unsaved result has only a temporary file, so nothing to download on the site.
+    downloadUrl:
+      response.generationId && format === 'svg' && stored
+        ? downloadUrl(response.generationId)
+        : undefined,
     generationsUrl: GENERATIONS_URL,
     creditsUsed: response.creditCost,
   };

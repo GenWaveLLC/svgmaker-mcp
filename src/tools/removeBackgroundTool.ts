@@ -198,7 +198,8 @@ export async function handleRemoveBackgroundTool(
           result.svgUrlExpiresIn,
           result,
           client,
-          ctx
+          ctx,
+          validatedArgs.storage !== false
         );
       }
     } catch (error: any) {

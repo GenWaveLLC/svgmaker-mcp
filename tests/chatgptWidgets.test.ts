@@ -317,6 +317,15 @@ describe('buildFileResult', () => {
     });
   });
 
+  it('on the ChatGPT endpoint gives no Download for an unsaved file or a raster', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({ credits: 5 } as any);
+    vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: false } as any);
+    const unsaved = await buildFileResult(...args, CHATGPT, false);
+    expect(unsaved._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
+    const raster = await buildFileResult(args[0], args[1], 'png', args[3], args[4], args[5], CHATGPT);
+    expect(raster._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
+  });
+
   it('on the ChatGPT endpoint leaves out what it cannot read', async () => {
     vi.mocked(svgmakerService.getAccountInfo).mockRejectedValue(new Error('down'));
     vi.mocked(svgmakerService.getGeneration).mockRejectedValue(new Error('down'));
