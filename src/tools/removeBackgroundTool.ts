@@ -64,6 +64,9 @@ const RemoveBackgroundToolHttpSchema = RemoveBackgroundToolInputSchema.omit({
     .describe(INPUT_PARAM_DESCRIPTION_HTTP),
 });
 
+// ChatGPT saves every result to the account: no unsaved result.
+const RemoveBackgroundToolChatgptSchema = RemoveBackgroundToolHttpSchema.omit({ storage: true });
+
 const REMOVE_BACKGROUND_DESCRIPTION_STDIO =
   'Remove the background from an image and return the subject as a transparent SVG. Use this to cut out a subject; use svgmaker_edit for any other change. The image comes from `input`, which accepts a local absolute file path, an https:// URL, an upl_ upload id, or a generation id. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
 
@@ -81,13 +84,17 @@ export function buildRemoveBackgroundToolDefinition(ctx: ToolContext) {
       openWorldHint: true,
     },
     description: ctx.chatgpt
-      ? 'Remove the background from an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`, and return the subject as a transparent SVG. Use this, not svgmaker_edit, whenever the user asks to remove, cut out or make transparent a background. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      ? "Remove the background from an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`, and return the subject as a transparent SVG. Use this, not svgmaker_edit, whenever the user asks to remove, cut out or make transparent a background. Spends account credits and saves every result to the user's SVGMaker account. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a Download button that downloads it on SVGMaker, and an Open button that shows the image on SVGMaker. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again."
       : isHttp
         ? REMOVE_BACKGROUND_DESCRIPTION_HTTP
         : REMOVE_BACKGROUND_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
     inputSchema: z.toJSONSchema(
-      isHttp ? RemoveBackgroundToolHttpSchema : RemoveBackgroundToolInputSchema,
+      isHttp
+        ? ctx.chatgpt
+          ? RemoveBackgroundToolChatgptSchema
+          : RemoveBackgroundToolHttpSchema
+        : RemoveBackgroundToolInputSchema,
       { io: 'input' }
     ),
   };
@@ -105,7 +112,10 @@ export async function handleRemoveBackgroundTool(
   logToFile('========== SVG REMOVE BACKGROUND TOOL CALLED ==========');
 
   try {
-    const validatedArgs = RemoveBackgroundToolInputSchema.parse(args);
+    // ChatGPT's schema has no storage option; drop it if the model sends it anyway.
+    const validatedArgs = RemoveBackgroundToolInputSchema.parse(
+      ctx.chatgpt ? { ...args, storage: undefined } : args
+    );
 
     const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
     if (outputPathRejection) return outputPathRejection;
@@ -198,7 +208,8 @@ export async function handleRemoveBackgroundTool(
           result.svgUrlExpiresIn,
           result,
           client,
-          ctx
+          ctx,
+          validatedArgs.storage !== false
         );
       }
     } catch (error: any) {

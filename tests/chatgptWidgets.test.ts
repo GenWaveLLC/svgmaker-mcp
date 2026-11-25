@@ -155,7 +155,11 @@ describe('result card widget', () => {
       const client = await connect(CHATGPT);
       try {
         const { tools } = await client.listTools();
-        expect(tools.find((tool) => tool.name === name)?.outputSchema).toBeDefined();
+        const tool = tools.find((t) => t.name === name);
+        expect(tool?.outputSchema).toBeDefined();
+        // ChatGPT saves every image, so it gets no raster or storage option.
+        expect(tool?.inputSchema.properties).not.toHaveProperty('raster');
+        expect(tool?.inputSchema.properties).not.toHaveProperty('storage');
         // The MCP client validates successful results against the tool's outputSchema.
         const result = await client.callTool({ name, arguments: args });
         expect(result.isError).not.toBe(true);
@@ -165,9 +169,11 @@ describe('result card widget', () => {
           premiumCredits: 35,
           credits: 5,
         });
-        expect(result.structuredContent?.format).toBe(
-          'raster' in args && args.raster ? 'png' : 'svg'
-        );
+        // A raster sent anyway is ignored: the result is still a saved SVG.
+        expect(result.structuredContent?.format).toBe('svg');
+        const text = (result.content as { text?: string }[])[0]?.text ?? '';
+        if ('raster' in args) expect(text).toContain('PNG, JPG, WebP or BMP');
+        else expect(text).not.toContain('PNG, JPG, WebP or BMP');
       } finally {
         await client.close();
       }
@@ -295,6 +301,7 @@ describe('buildFileResult', () => {
         url: 'https://svgmaker.io/api/files/t',
         openUrl: 'https://svgmaker.io/generations?open=gen1',
         editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+        downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
         generationsUrl: 'https://svgmaker.io/generations',
         preview: 'data:image/webp;base64,UFJFVklFVw==',
         creditsUsed: 2,
@@ -316,6 +323,23 @@ describe('buildFileResult', () => {
     });
   });
 
+  it('on the ChatGPT endpoint gives no Download for an unsaved file or a raster', async () => {
+    vi.mocked(svgmakerService.getAccountInfo).mockResolvedValue({ credits: 5 } as any);
+    vi.mocked(svgmakerService.getGeneration).mockResolvedValue({ isPublic: false } as any);
+    const unsaved = await buildFileResult(...args, CHATGPT, false);
+    expect(unsaved._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
+    const raster = await buildFileResult(
+      args[0],
+      args[1],
+      'png',
+      args[3],
+      args[4],
+      args[5],
+      CHATGPT
+    );
+    expect(raster._meta?.['svgmaker/file'].downloadUrl).toBeUndefined();
+  });
+
   it('on the ChatGPT endpoint leaves out what it cannot read', async () => {
     vi.mocked(svgmakerService.getAccountInfo).mockRejectedValue(new Error('down'));
     vi.mocked(svgmakerService.getGeneration).mockRejectedValue(new Error('down'));
@@ -325,6 +349,7 @@ describe('buildFileResult', () => {
       url: 'https://svgmaker.io/api/files/t',
       openUrl: 'https://svgmaker.io/generations?open=gen1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
       creditsUsed: 2,
@@ -436,7 +461,7 @@ describe('withImageCard', () => {
     ).toBe(image);
   });
 
-  it('gives a generation Edit and opens it on the generations page', async () => {
+  it('gives a generation Edit and Download and opens it on the generations page', async () => {
     const result = await withImageCard(image, 'gen1', 'generations', undefined, CHATGPT);
     expect(result.content[0]).toEqual(image.content[0]);
     expect(result.content[1]).toMatchObject({ type: 'text' });
@@ -444,6 +469,7 @@ describe('withImageCard', () => {
     expect(result._meta?.['svgmaker/file']).toEqual({
       url: 'https://svgmaker.io/generations?open=gen1',
       editUrl: 'https://svgmaker.io/editor?generationId=gen1',
+      downloadUrl: 'https://svgmaker.io/generations?open=gen1&download=1',
       generationsUrl: 'https://svgmaker.io/generations',
       preview: 'data:image/webp;base64,UFJFVklFVw==',
     });

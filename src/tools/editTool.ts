@@ -146,6 +146,9 @@ const EditToolHttpSchema = EditToolObjectSchema.omit({
     ),
 });
 
+// ChatGPT saves every image to the account: no raster PNG, no unsaved result.
+const EditToolChatgptSchema = EditToolHttpSchema.omit({ raster: true, storage: true });
+
 const EDIT_DESCRIPTION_STDIO =
   'Edit an existing image or SVG with a text prompt. Use this to change artwork you already have; use svgmaker_generate to create new artwork, and svgmaker_convert to vectorize a raster image without changing it. The image comes from `input`, which accepts a local absolute file path, an https:// URL, an upl_ upload id, or a generation id. Returns the saved file path when output_path is given, otherwise a hosted SVGMaker URL.';
 
@@ -163,14 +166,15 @@ export function buildEditToolDefinition(ctx: ToolContext) {
       openWorldHint: true,
     },
     description: ctx.chatgpt
-      ? 'Edit an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`. To remove a background or make it transparent, use svgmaker_remove_background instead. Spends account credits and stores results according to the storage option. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and an Open button that shows the image on SVGMaker, where the user can download it if their SVGMaker plan includes downloads. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again.'
+      ? "Edit an image from an attachment, a URL, or the generationId of an earlier SVGMaker result, passed as `input`. To remove a background or make it transparent, use svgmaker_remove_background instead. Spends account credits and saves every result to the user's SVGMaker account. Always makes an SVG; for PNG, JPG, WebP or BMP, the user picks the format in the card's Download button on SVGMaker. Free-account outputs and prompts are public; paid-account outputs remain private unless shared. Returns an image card with credits used and a Download button that downloads it on SVGMaker, and an Open button that shows the image on SVGMaker. If a call fails or times out, the image may still have been made and charged: call svgmaker_generations_list and tell the user what it shows before trying again."
       : isHttp
         ? EDIT_DESCRIPTION_HTTP
         : EDIT_DESCRIPTION_STDIO,
     ...(isHttp ? { outputSchema: fileResultOutputSchema } : {}),
-    inputSchema: z.toJSONSchema(isHttp ? EditToolHttpSchema : EditToolObjectSchema, {
-      io: 'input',
-    }),
+    inputSchema: z.toJSONSchema(
+      isHttp ? (ctx.chatgpt ? EditToolChatgptSchema : EditToolHttpSchema) : EditToolObjectSchema,
+      { io: 'input' }
+    ),
   };
 }
 
@@ -186,7 +190,12 @@ export async function handleEditTool(
   logToFile('========== SVG EDIT TOOL CALLED ==========');
 
   try {
-    const validatedArgs = EditToolInputSchema.parse(args);
+    // A PNG asked for in ChatGPT is made as an SVG; the result text says so.
+    const rasterDropped = ctx.chatgpt && args?.raster === true;
+    // ChatGPT's schema has neither option; drop them if the model sends them anyway.
+    const validatedArgs = EditToolInputSchema.parse(
+      ctx.chatgpt ? { ...args, raster: undefined, storage: undefined } : args
+    );
 
     const outputPathRejection = rejectOutputPathOverHttp(validatedArgs.output_path, ctx);
     if (outputPathRejection) return outputPathRejection;
@@ -332,13 +341,16 @@ export async function handleEditTool(
           );
         } else if (result.svgUrl) {
           return await buildFileResult(
-            'SVG edited successfully.',
+            rasterDropped
+              ? "SVG edited successfully. ChatGPT makes SVGs only; the user can download it as PNG, JPG, WebP or BMP from the card's Download button on SVGMaker."
+              : 'SVG edited successfully.',
             result.svgUrl,
             'svg',
             result.svgUrlExpiresIn,
             result,
             client,
-            ctx
+            ctx,
+            validatedArgs.storage !== false
           );
         } else {
           throw new Error('SVGMaker API did not return a hosted URL.');

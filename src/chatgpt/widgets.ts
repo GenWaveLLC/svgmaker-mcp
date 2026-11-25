@@ -8,8 +8,8 @@ import {
 const WIDGET_MIME_TYPE = 'text/html;profile=mcp-app';
 
 // Bump the version in a URI whenever its HTML changes: ChatGPT caches widgets by URI.
-const RESULT_CARD_URI = 'ui://svgmaker/result-card-v26.html';
-const LIST_CARD_URI = 'ui://svgmaker/list-card-v10.html';
+const RESULT_CARD_URI = 'ui://svgmaker/result-card-v30.html';
+const LIST_CARD_URI = 'ui://svgmaker/list-card-v11.html';
 
 /**
  * Every widget: its ui:// URI, the built HTML file in ./widgets (copied from
@@ -20,8 +20,9 @@ const WIDGETS = [
     uri: RESULT_CARD_URI,
     file: 'result-card.html',
     name: 'SVGMaker result card',
-    description: 'Preview of an SVGMaker image, with Edit and Open buttons.',
-    shows: 'Shows the image with Edit and Open buttons and, for a new image, the credits used.',
+    description: 'Preview of an SVGMaker image, with Edit, Download and Open buttons.',
+    shows:
+      'Shows the image with Edit, Download and Open buttons and, for a new image, the credits used.',
   },
   {
     uri: LIST_CARD_URI,
@@ -57,11 +58,11 @@ const FILE_ORIGIN = (process.env.SVGMAKER_AUTH_SERVER_URL || 'https://svgmaker.i
 
 /** What ChatGPT's model is told about this server, in the initialize result. */
 export const CHATGPT_INSTRUCTIONS =
-  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. A list tool's card already shows its images, so never preview an image a list card just showed. To show one image the user names, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with `input` set to that result's generationId. Share or delete an image only when explicitly requested. Files are downloaded on svgmaker.io, from the card's Open button, never in ChatGPT; whether the user can download depends on their SVGMaker plan, so never promise a download or suggest upgrading. A failed or timed-out generate, edit, convert or remove-background call may still have made and charged an image: call svgmaker_generations_list before retrying, and never tell the user an image is unchanged or was not made without checking. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id or repeat what the card shows, and describe the image only when the user asks.";
+  "Never show a picture from the web to stand for an SVGMaker image: it is not the user's image. SVGMaker images appear only in the SVGMaker card. A list tool's card already shows its images, so never preview an image a list card just showed. To show one image the user names, call svgmaker_generations_preview or svgmaker_gallery_preview. To point the user at their images, link the SVGMaker generations page. To change an SVGMaker image, call svgmaker_edit with `input` set to that result's generationId. Share or delete an image only when explicitly requested. Files are downloaded on svgmaker.io from the card's Download button, never in ChatGPT. A failed or timed-out generate, edit, convert or remove-background call may still have made and charged an image: call svgmaker_generations_list before retrying, and never tell the user an image is unchanged or was not made without checking. When a tool result shows an SVGMaker card, reply in one short sentence: never write a generation id or repeat what the card shows, and describe the image only when the user asks.";
 
 /** The answer to a download tool call from an old ChatGPT chat: ChatGPT has no download tools. */
 export const CHATGPT_DOWNLOAD_ERROR =
-  "Downloads aren't available in ChatGPT. Open the image on svgmaker.io from its card; downloading there depends on your SVGMaker plan.";
+  "Downloads aren't available in ChatGPT. Use the Download button on the image's card to download it on svgmaker.io.";
 
 /** The user's generations page on that same host. */
 export const GENERATIONS_URL = `${FILE_ORIGIN}/generations`;
@@ -76,6 +77,11 @@ export const GALLERY_URL = `${FILE_ORIGIN}/gallery`;
 export function gallerySearchUrl(query?: string): string {
   const q = query?.trim();
   return q ? `${GALLERY_URL}?query=${encodeURIComponent(q)}` : GALLERY_URL;
+}
+
+/** One of the user's generations on the generations page, with its download dialog open. */
+export function downloadUrl(generationId: string): string {
+  return `${GENERATIONS_URL}?open=${encodeURIComponent(generationId)}&download=1`;
 }
 
 /** The public page of a public generation, where anyone can download it. */
