@@ -21,7 +21,8 @@ const WIDGETS = [
     file: 'result-card.html',
     name: 'SVGMaker result card',
     description: 'Preview of an SVGMaker image, with Edit, Download and Open buttons.',
-    shows: 'Shows the image with Edit, Download and Open buttons and, for a new image, the credits used.',
+    shows:
+      'Shows the image with Edit, Download and Open buttons and, for a new image, the credits used.',
   },
   {
     uri: LIST_CARD_URI,
