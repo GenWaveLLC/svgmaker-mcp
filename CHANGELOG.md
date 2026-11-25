@@ -5,6 +5,17 @@ All notable changes to the svgmaker-mcp project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-11-25
+
+### Added
+- Download button on the ChatGPT result card for the user's saved SVGs. It opens the image's download dialog on svgmaker.io (`/generations?open=<id>&download=1`)
+- OpenAI Apps domain verification token, served at `/.well-known/openai-apps-challenge`
+
+### Changed
+- On `/chatgpt`, `svgmaker_generate` and `svgmaker_edit` no longer offer `raster`, and these two plus `svgmaker_remove_background` no longer offer `storage`: every result is an SVG saved to the account. A `raster` or `storage` sent anyway is ignored, and a PNG request gets a note pointing to the card's Download button for PNG, JPG, WebP or BMP
+- On `/chatgpt`, tool descriptions point downloads to the card's Download button and no longer say downloading depends on the user's plan
+- Result card is `result-card-v30.html` and list card `list-card-v11.html`, so ChatGPT loads the new cards
+
 ## [2.2.1] - 2026-11-16
 
 ### Security
